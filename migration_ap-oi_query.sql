@@ -1,125 +1,162 @@
 /* CTEs */
-WITH payment_terms_mapping AS (
-  -- Placeholder, replace with the actual mapping
-  SELECT
-    '0' AS "Id",
-    NULL AS "MappedId"
-  FROM
-    SYS.DUMMY
-),
-
-marketing_documents AS (
-  SELECT
-    *
-  FROM
-    OPCH
-UNION ALL
-  SELECT
-    *
-  FROM
-    ORPC
-),
-
-reconciliation_entries AS (
-  SELECT
-    'S' AS "ItemType",
-    'P291100002' AS "Account",
-    'reconciliation' AS "AccountGroup",
-    NULL AS "BaselineDate",
-    NULL AS "PaymentTerms",
-    NULL AS "PaymentMethod",
-    OCRD."CardCode" AS "ItemText",
-    REPLACE(REPLACE(TO_VARCHAR(CAST(CASE WHEN JDT1."FCCurrency" IS NOT NULL THEN JDT1."BalFcDeb" - JDT1."BalFcCred" ELSE JDT1."BalDueDeb" - JDT1."BalDueCred" END AS DECIMAL(19, 2)) * -1), '.00', ''), '.', ',' ) AS "Amount",
-    CAST(CASE WHEN JDT1."FCCurrency" IS NOT NULL THEN JDT1."BalDueDeb" - JDT1."BalDueCred" ELSE NULL END AS BIGINT) * -1 AS "AmountDI",
-    CAST(JDT1."BalDueDeb" - JDT1."BalDueCred" AS BIGINT) * -1 AS "AmountCLP",
-    OJDT."TransId",
-    JDT1."Line_ID",
-    OCRD."CardCode",
-    TO_VARCHAR(OJDT."TaxDate", 'YYYYMMDD') AS "DocumentDate",
-    COALESCE(JDT1."FCCurrency", OADM."MainCurncy") AS "Currency",
-    CASE
-      WHEN md."TransId" IS NOT NULL THEN OJDT."DocSeries" || '-' || md."FolioNum"
-      ELSE OJDT."DocSeries" || '-' || OJDT."TransId"
-    END AS "Reference"
-  FROM
-    OJDT
-  CROSS JOIN OADM
-  INNER JOIN JDT1 ON
-    OJDT."TransId" = JDT1."TransId"
-  INNER JOIN OACT ON
-    JDT1."Account" = OACT."AcctCode"
-  INNER JOIN OCRD ON
-    (JDT1."ShortName" = OCRD."CardCode" AND OCRD."CardType" = 'S') /* Only include vendor lines */
-  LEFT JOIN marketing_documents md ON
-    OJDT."TransId" = md."TransId"
-  WHERE
-    (JDT1."BalDueDeb" - JDT1."BalDueCred") <> 0 /* Only include open entries */
-    AND OJDT."RefDate" <= '2026-01-31' /* Filter by posting date */
-),
-
-journal_entries AS (
-  SELECT
-    'K' AS "ItemType",
-    COALESCE(OCRD."U_ID_SAP_AFS1", 'NOT MAPPED') AS "Account",
-    CASE
-      WHEN OACT."GroupMask" = 1 THEN '01 assets'
-      WHEN OACT."GroupMask" = 2 THEN '02 liabilities'
-      WHEN OACT."GroupMask" = 3 THEN '03 equity'
-      WHEN OACT."GroupMask" = 4 THEN '04 revenue'
-      WHEN OACT."GroupMask" = 5 THEN '05 cost of goods sold'
-      WHEN OACT."GroupMask" = 6 THEN '06 expenses'
-      WHEN OACT."GroupMask" = 7 THEN '07 other income'
-      WHEN OACT."GroupMask" = 8 THEN '08 other expenses'
-    END AS "AccountGroup",
-    TO_VARCHAR(OJDT."DueDate", 'YYYYMMDD') AS "BaselineDate",
-    COALESCE(ptm."MappedId", 'Z999') AS "PaymentTerms", /* Default dummy payment term */
-    'B' AS "PaymentMethod", /* Default vendor payment method */
-    COALESCE(LPAD(OCRD."U_ID_SAP_AFS1", 10, '0'), 'NOT MAPPED') || '-' || OCRD."CardCode" AS "ItemText",
-    REPLACE(REPLACE(TO_VARCHAR(CAST(CASE WHEN JDT1."FCCurrency" IS NOT NULL THEN JDT1."BalFcDeb" - JDT1."BalFcCred" ELSE JDT1."BalDueDeb" - JDT1."BalDueCred" END AS DECIMAL(19, 2))), '.00', ''), '.', ',' ) AS "Amount",
-    CAST(CASE WHEN JDT1."FCCurrency" IS NOT NULL THEN JDT1."BalDueDeb" - JDT1."BalDueCred" ELSE NULL END AS BIGINT) AS "AmountDI",
-    CAST(JDT1."BalDueDeb" - JDT1."BalDueCred" AS BIGINT) AS "AmountCLP",
-    OJDT."TransId",
-    JDT1."Line_ID",
-    OCRD."CardCode",
-    TO_VARCHAR(OJDT."TaxDate", 'YYYYMMDD') AS "DocumentDate",
-    COALESCE(JDT1."FCCurrency", OADM."MainCurncy") AS "Currency",
-    CASE
-      WHEN md."TransId" IS NOT NULL THEN OJDT."DocSeries" || '-' || md."FolioNum"
-      ELSE OJDT."DocSeries" || '-' || OJDT."TransId"
-    END AS "Reference"
-  FROM
-    OJDT
-  CROSS JOIN OADM
-  INNER JOIN JDT1 ON
-    OJDT."TransId" = JDT1."TransId"
-  INNER JOIN OACT ON
-    JDT1."Account" = OACT."AcctCode"
-  INNER JOIN OCRD ON
-    (JDT1."ShortName" = OCRD."CardCode" AND OCRD."CardType" = 'S') /* Only include vendor lines */
-  LEFT JOIN marketing_documents md ON
-    OJDT."TransId" = md."TransId"
-  LEFT JOIN payment_terms_mapping ptm ON
-    md."GroupNum" = ptm."Id"
-  WHERE
-    (JDT1."BalDueDeb" - JDT1."BalDueCred") <> 0 /* Only include open entries */
-    AND OJDT."RefDate" <= '2026-01-31' /* Filter by posting date */
-),
-
-combined_entries AS (
-  SELECT
-    *
-  FROM
-    reconciliation_entries
-UNION ALL
-  SELECT
-    *
-  FROM
-    journal_entries
-)
-
-/* AP Open Items Query */
+WITH
+  payment_terms_mapping AS (
+    -- Placeholder, replace with the actual mapping
+    SELECT
+      '0' AS "Id",
+      NULL AS "MappedId"
+    FROM
+      SYS.DUMMY
+  ),
+  marketing_documents AS (
+    SELECT
+      *
+    FROM
+      OPCH
+    UNION ALL
+    SELECT
+      *
+    FROM
+      ORPC
+  ),
+  reconciliation_entries AS (
+    SELECT
+      'S' AS "ItemType",
+      'P291100002' AS "Account",
+      'reconciliation' AS "AccountGroup",
+      NULL AS "BaselineDate",
+      NULL AS "PaymentTerms",
+      NULL AS "PaymentMethod",
+      OCRD."CardCode" AS "ItemText",
+      REPLACE (
+        REPLACE (
+          TO_VARCHAR (
+            CAST(
+              CASE
+                WHEN JDT1."FCCurrency" IS NOT NULL THEN JDT1."BalFcDeb" - JDT1."BalFcCred"
+                ELSE JDT1."BalDueDeb" - JDT1."BalDueCred"
+              END AS DECIMAL(19, 2)
+            ) * -1
+          ),
+          '.00',
+          ''
+        ),
+        '.',
+        ','
+      ) AS "Amount",
+      CAST(
+        CASE
+          WHEN JDT1."FCCurrency" IS NOT NULL THEN JDT1."BalDueDeb" - JDT1."BalDueCred"
+          ELSE NULL
+        END AS BIGINT
+      ) * -1 AS "AmountDI",
+      CAST(JDT1."BalDueDeb" - JDT1."BalDueCred" AS BIGINT) * -1 AS "AmountCLP",
+      OJDT."TransId",
+      JDT1."Line_ID",
+      OCRD."CardCode",
+      TO_VARCHAR (OJDT."TaxDate", 'YYYYMMDD') AS "DocumentDate",
+      COALESCE(JDT1."FCCurrency", OADM."MainCurncy") AS "Currency",
+      CASE
+        WHEN md."TransId" IS NOT NULL THEN OJDT."DocSeries" || '-' || md."FolioNum"
+        ELSE OJDT."DocSeries" || '-' || OJDT."TransId"
+      END AS "Reference"
+    FROM
+      OJDT
+      CROSS JOIN OADM
+      INNER JOIN JDT1 ON OJDT."TransId" = JDT1."TransId"
+      INNER JOIN OACT ON JDT1."Account" = OACT."AcctCode"
+      INNER JOIN OCRD ON (
+        JDT1."ShortName" = OCRD."CardCode"
+        AND OCRD."CardType" = 'S'
+      ) /* Only include vendor lines */
+      LEFT JOIN marketing_documents md ON OJDT."TransId" = md."TransId"
+    WHERE
+      (JDT1."BalDueDeb" - JDT1."BalDueCred") <> 0 /* Only include open entries */
+      AND OJDT."RefDate" <= '2026-01-31' /* Filter by posting date */
+  ),
+  journal_entries AS (
+    SELECT
+      'K' AS "ItemType",
+      COALESCE(OCRD."U_ID_SAP_AFS1", 'NOT MAPPED') AS "Account",
+      CASE
+        WHEN OACT."GroupMask" = 1 THEN '01 assets'
+        WHEN OACT."GroupMask" = 2 THEN '02 liabilities'
+        WHEN OACT."GroupMask" = 3 THEN '03 equity'
+        WHEN OACT."GroupMask" = 4 THEN '04 revenue'
+        WHEN OACT."GroupMask" = 5 THEN '05 cost of goods sold'
+        WHEN OACT."GroupMask" = 6 THEN '06 expenses'
+        WHEN OACT."GroupMask" = 7 THEN '07 other income'
+        WHEN OACT."GroupMask" = 8 THEN '08 other expenses'
+      END AS "AccountGroup",
+      TO_VARCHAR (OJDT."DueDate", 'YYYYMMDD') AS "BaselineDate",
+      COALESCE(ptm."MappedId", 'Z999') AS "PaymentTerms",
+      /* Default dummy payment term */ 'B' AS "PaymentMethod",
+      /* Default vendor payment method */ COALESCE(LPAD (OCRD."U_ID_SAP_AFS1", 10, '0'), 'NOT MAPPED') || '-' || OCRD."CardCode" AS "ItemText",
+      REPLACE (
+        REPLACE (
+          TO_VARCHAR (
+            CAST(
+              CASE
+                WHEN JDT1."FCCurrency" IS NOT NULL THEN JDT1."BalFcDeb" - JDT1."BalFcCred"
+                ELSE JDT1."BalDueDeb" - JDT1."BalDueCred"
+              END AS DECIMAL(19, 2)
+            )
+          ),
+          '.00',
+          ''
+        ),
+        '.',
+        ','
+      ) AS "Amount",
+      CAST(
+        CASE
+          WHEN JDT1."FCCurrency" IS NOT NULL THEN JDT1."BalDueDeb" - JDT1."BalDueCred"
+          ELSE NULL
+        END AS BIGINT
+      ) AS "AmountDI",
+      CAST(JDT1."BalDueDeb" - JDT1."BalDueCred" AS BIGINT) AS "AmountCLP",
+      OJDT."TransId",
+      JDT1."Line_ID",
+      OCRD."CardCode",
+      TO_VARCHAR (OJDT."TaxDate", 'YYYYMMDD') AS "DocumentDate",
+      COALESCE(JDT1."FCCurrency", OADM."MainCurncy") AS "Currency",
+      CASE
+        WHEN md."TransId" IS NOT NULL THEN OJDT."DocSeries" || '-' || md."FolioNum"
+        ELSE OJDT."DocSeries" || '-' || OJDT."TransId"
+      END AS "Reference"
+    FROM
+      OJDT
+      CROSS JOIN OADM
+      INNER JOIN JDT1 ON OJDT."TransId" = JDT1."TransId"
+      INNER JOIN OACT ON JDT1."Account" = OACT."AcctCode"
+      INNER JOIN OCRD ON (
+        JDT1."ShortName" = OCRD."CardCode"
+        AND OCRD."CardType" = 'S'
+      ) /* Only include vendor lines */
+      LEFT JOIN marketing_documents md ON OJDT."TransId" = md."TransId"
+      LEFT JOIN payment_terms_mapping ptm ON md."GroupNum" = ptm."Id"
+    WHERE
+      (JDT1."BalDueDeb" - JDT1."BalDueCred") <> 0 /* Only include open entries */
+      AND OJDT."RefDate" <= '2026-01-31' /* Filter by posting date */
+  ),
+  combined_entries AS (
+    SELECT
+      *
+    FROM
+      reconciliation_entries
+    UNION ALL
+    SELECT
+      *
+    FROM
+      journal_entries
+  )
+  /* AP Open Items Query */
 SELECT
-  DENSE_RANK() OVER (ORDER BY "CardCode", "TransId") AS "1_grouping",
+  DENSE_RANK() OVER (
+    ORDER BY
+      "CardCode",
+      "TransId"
+  ) AS "1_grouping",
   'E930' AS "2_company_code",
   'ZK' AS "3_document_type",
   "DocumentDate" AS "4_document_date",

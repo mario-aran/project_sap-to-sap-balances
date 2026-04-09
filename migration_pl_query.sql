@@ -1,161 +1,187 @@
 /* CTEs */
-WITH accounts_mapping AS (
-  -- Place holder, replace with the actual mapping
-  SELECT
-    '0' AS "Id",
-    NULL AS "MappedId"
-  FROM
-    SYS.DUMMY
-),
-
-profit_centers_mapping AS (
-  -- Place holder, replace with the actual mapping
-  SELECT
-    '0' AS "Id",
-    NULL AS "MappedId"
-  FROM
-    SYS.DUMMY
-),
-
-cost_centers_mapping AS (
-  -- Place holder, replace with the actual mapping
-  SELECT
-    '0' AS "Id",
-    NULL AS "MappedId"
-  FROM
-    SYS.DUMMY
-),
-
-reconciliation_entries AS (
-  SELECT
-    'P291100000' AS "Account",
-    'reconciliation' AS "AccountGroup",
-    NULL AS "PrcCode",
-    NULL AS "CostCenter",
-    NULL AS "ProfitCenter",
-    NULL AS "BrandCategory",
-    NULL AS "ProductLine",
-    NULL AS "CollectionType",
-    NULL AS "MaterialClass",
-    CAST(JDT1."Debit" - JDT1."Credit" AS BIGINT) * -1 AS "TotalAmount",
-    CAST(JDT1."Debit" - JDT1."Credit" AS BIGINT) * -1 AS "SplitAmount",
-    OJDT."TransId",
-    JDT1."Line_ID",
-    JDT1."Account" AS "ItemText",
-    TO_VARCHAR(LAST_DAY(OJDT."RefDate"), 'YYYYMMDD') AS "PostingDate"
-  FROM
-    OJDT
-  INNER JOIN JDT1 ON
-    OJDT."TransId" = JDT1."TransId"
-  INNER JOIN OACT ON
-    JDT1."Account" = OACT."AcctCode"
-  WHERE
-    OACT."GroupMask" IN (4, 5, 6, 7, 8) /* Only include P&L accounts */
-    AND OJDT."TransType" NOT IN (-2, -3) /* Ignore opening/closing balance transactions */
-    AND (JDT1."Debit" - JDT1."Credit") <> 0 /* Exclude lines with balance 0 */
-    AND OJDT."RefDate" BETWEEN '2026-01-01' AND '2026-01-31' /* Filter by posting date */
-),
-
-journal_entries AS (
-  SELECT
-    COALESCE(am."MappedId", 'NOT MAPPED') AS "Account",
-    CASE
-      WHEN OACT."GroupMask" = 1 THEN '01 assets'
-      WHEN OACT."GroupMask" = 2 THEN '02 liabilities'
-      WHEN OACT."GroupMask" = 3 THEN '03 equity'
-      WHEN OACT."GroupMask" = 4 THEN '04 revenue'
-      WHEN OACT."GroupMask" = 5 THEN '05 cost of goods sold'
-      WHEN OACT."GroupMask" = 6 THEN '06 expenses'
-      WHEN OACT."GroupMask" = 7 THEN '07 other income'
-      WHEN OACT."GroupMask" = 8 THEN '08 other expenses'
-    END AS "AccountGroup",
-    OCR1."PrcCode",
-    ccm."MappedId" AS "CostCenter",
-    pcm."MappedId" AS "ProfitCenter",
-    CASE WHEN pcm."MappedId" IS NOT NULL THEN 'YY' END AS "BrandCategory",
-    CASE WHEN pcm."MappedId" IS NOT NULL THEN 'YY' END AS "ProductLine",
-    CASE WHEN pcm."MappedId" IS NOT NULL THEN 'Y' END AS "CollectionType",
-    CASE WHEN pcm."MappedId" IS NOT NULL THEN 'Y' END AS "MaterialClass",
-    CAST(JDT1."Debit" - JDT1."Credit" AS BIGINT) AS "TotalAmount",
-    ROUND(CAST(JDT1."Debit" - JDT1."Credit" AS BIGINT) * COALESCE((OCR1."PrcAmount" / OOCR."OcrTotal"), 1), 0) AS "SplitAmount",
-    OJDT."TransId",
-    JDT1."Line_ID",
-    JDT1."Account" AS "ItemText",
-    TO_VARCHAR(LAST_DAY(OJDT."RefDate"), 'YYYYMMDD') AS "PostingDate"
-  FROM
-    OJDT
-  INNER JOIN JDT1 ON
-    OJDT."TransId" = JDT1."TransId"
-  INNER JOIN OACT ON
-    JDT1."Account" = OACT."AcctCode"
-  LEFT JOIN accounts_mapping am ON
-    JDT1."Account" = am."Id"
-  LEFT JOIN OOCR ON
-    JDT1."ProfitCode" = OOCR."OcrCode"
-  LEFT JOIN OCR1 ON
-    OOCR."OcrCode" = OCR1."OcrCode"
-  LEFT JOIN cost_centers_mapping ccm ON
-    OCR1."PrcCode" = ccm."Id"
-  LEFT JOIN profit_centers_mapping pcm ON
-    OCR1."PrcCode" = pcm."Id"
-  WHERE
-    OACT."GroupMask" IN (4, 5, 6, 7, 8) /* Only include P&L accounts */
-    AND OJDT."TransType" NOT IN (-2, -3) /* Ignore opening/closing balance transactions */
-    AND (JDT1."Debit" - JDT1."Credit") <> 0 /* Exclude lines with balance 0 */
-    AND OJDT."RefDate" BETWEEN '2026-01-01' AND '2026-01-31' /* Filter by posting date */
-),
-
-combined_entries AS (
-  SELECT
-    *,
-    NULL AS "RowNumDesc",
-    NULL AS "RestAmount"
-  FROM
-    reconciliation_entries
-UNION ALL
-  SELECT
-    *,
-    ROW_NUMBER() OVER (PARTITION BY "TransId", "Line_ID" ORDER BY "PrcCode" DESC) AS "RowNumDesc",
-    COALESCE(SUM("SplitAmount") OVER (PARTITION BY "TransId", "Line_ID" ORDER BY "PrcCode" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), 0) AS "RestAmount"
-  FROM
-    journal_entries
-),
-
-filtered_entries AS (
-  SELECT
-    "PrcCode",
-    "Account",
-    "AccountGroup",
-    "CostCenter",
-    "ProfitCenter",
-    "BrandCategory",
-    "ProductLine",
-    "CollectionType",
-    "MaterialClass", 
-    "ItemText",
-    "PostingDate",
-    SUM(CASE WHEN "RowNumDesc" = 1 THEN ("TotalAmount" - "RestAmount") ELSE "SplitAmount" END) AS "Amount"
-  FROM
-    combined_entries
-  GROUP BY
-    "PrcCode",
-    "Account",
-    "AccountGroup",
-    "CostCenter",
-    "ProfitCenter",
-    "BrandCategory",
-    "ProductLine",
-    "CollectionType",
-    "MaterialClass", 
-    "ItemText",
-    "PostingDate"
-  HAVING
-    SUM(CASE WHEN "RowNumDesc" = 1 THEN ("TotalAmount" - "RestAmount") ELSE "SplitAmount" END) <> 0 /* Exclude lines with balance 0 */
-)
-
-/* P&L Query */
+WITH
+  accounts_mapping AS (
+    -- Place holder, replace with the actual mapping
+    SELECT
+      '0' AS "Id",
+      NULL AS "MappedId"
+    FROM
+      SYS.DUMMY
+  ),
+  profit_centers_mapping AS (
+    -- Place holder, replace with the actual mapping
+    SELECT
+      '0' AS "Id",
+      NULL AS "MappedId"
+    FROM
+      SYS.DUMMY
+  ),
+  cost_centers_mapping AS (
+    -- Place holder, replace with the actual mapping
+    SELECT
+      '0' AS "Id",
+      NULL AS "MappedId"
+    FROM
+      SYS.DUMMY
+  ),
+  reconciliation_entries AS (
+    SELECT
+      'P291100000' AS "Account",
+      'reconciliation' AS "AccountGroup",
+      NULL AS "PrcCode",
+      NULL AS "CostCenter",
+      NULL AS "ProfitCenter",
+      NULL AS "BrandCategory",
+      NULL AS "ProductLine",
+      NULL AS "CollectionType",
+      NULL AS "MaterialClass",
+      CAST(JDT1."Debit" - JDT1."Credit" AS BIGINT) * -1 AS "TotalAmount",
+      CAST(JDT1."Debit" - JDT1."Credit" AS BIGINT) * -1 AS "SplitAmount",
+      OJDT."TransId",
+      JDT1."Line_ID",
+      JDT1."Account" AS "ItemText",
+      TO_VARCHAR (LAST_DAY (OJDT."RefDate"), 'YYYYMMDD') AS "PostingDate"
+    FROM
+      OJDT
+      INNER JOIN JDT1 ON OJDT."TransId" = JDT1."TransId"
+      INNER JOIN OACT ON JDT1."Account" = OACT."AcctCode"
+    WHERE
+      OACT."GroupMask" IN (4, 5, 6, 7, 8) /* Only include P&L accounts */
+      AND OJDT."TransType" NOT IN (-2, -3) /* Ignore opening/closing balance transactions */
+      AND (JDT1."Debit" - JDT1."Credit") <> 0 /* Exclude lines with balance 0 */
+      AND OJDT."RefDate" BETWEEN '2026-01-01' AND '2026-01-31'  /* Filter by posting date */
+  ),
+  journal_entries AS (
+    SELECT
+      COALESCE(am."MappedId", 'NOT MAPPED') AS "Account",
+      CASE
+        WHEN OACT."GroupMask" = 1 THEN '01 assets'
+        WHEN OACT."GroupMask" = 2 THEN '02 liabilities'
+        WHEN OACT."GroupMask" = 3 THEN '03 equity'
+        WHEN OACT."GroupMask" = 4 THEN '04 revenue'
+        WHEN OACT."GroupMask" = 5 THEN '05 cost of goods sold'
+        WHEN OACT."GroupMask" = 6 THEN '06 expenses'
+        WHEN OACT."GroupMask" = 7 THEN '07 other income'
+        WHEN OACT."GroupMask" = 8 THEN '08 other expenses'
+      END AS "AccountGroup",
+      OCR1."PrcCode",
+      ccm."MappedId" AS "CostCenter",
+      pcm."MappedId" AS "ProfitCenter",
+      CASE
+        WHEN pcm."MappedId" IS NOT NULL THEN 'YY'
+      END AS "BrandCategory",
+      CASE
+        WHEN pcm."MappedId" IS NOT NULL THEN 'YY'
+      END AS "ProductLine",
+      CASE
+        WHEN pcm."MappedId" IS NOT NULL THEN 'Y'
+      END AS "CollectionType",
+      CASE
+        WHEN pcm."MappedId" IS NOT NULL THEN 'Y'
+      END AS "MaterialClass",
+      CAST(JDT1."Debit" - JDT1."Credit" AS BIGINT) AS "TotalAmount",
+      ROUND(
+        CAST(JDT1."Debit" - JDT1."Credit" AS BIGINT) * COALESCE((OCR1."PrcAmount" / OOCR."OcrTotal"), 1),
+        0
+      ) AS "SplitAmount",
+      OJDT."TransId",
+      JDT1."Line_ID",
+      JDT1."Account" AS "ItemText",
+      TO_VARCHAR (LAST_DAY (OJDT."RefDate"), 'YYYYMMDD') AS "PostingDate"
+    FROM
+      OJDT
+      INNER JOIN JDT1 ON OJDT."TransId" = JDT1."TransId"
+      INNER JOIN OACT ON JDT1."Account" = OACT."AcctCode"
+      LEFT JOIN accounts_mapping am ON JDT1."Account" = am."Id"
+      LEFT JOIN OOCR ON JDT1."ProfitCode" = OOCR."OcrCode"
+      LEFT JOIN OCR1 ON OOCR."OcrCode" = OCR1."OcrCode"
+      LEFT JOIN cost_centers_mapping ccm ON OCR1."PrcCode" = ccm."Id"
+      LEFT JOIN profit_centers_mapping pcm ON OCR1."PrcCode" = pcm."Id"
+    WHERE
+      OACT."GroupMask" IN (4, 5, 6, 7, 8) /* Only include P&L accounts */
+      AND OJDT."TransType" NOT IN (-2, -3) /* Ignore opening/closing balance transactions */
+      AND (JDT1."Debit" - JDT1."Credit") <> 0 /* Exclude lines with balance 0 */
+      AND OJDT."RefDate" BETWEEN '2026-01-01' AND '2026-01-31'  /* Filter by posting date */
+  ),
+  combined_entries AS (
+    SELECT
+      *,
+      NULL AS "RowNumDesc",
+      NULL AS "RestAmount"
+    FROM
+      reconciliation_entries
+    UNION ALL
+    SELECT
+      *,
+      ROW_NUMBER() OVER (
+        PARTITION BY
+          "TransId",
+          "Line_ID"
+        ORDER BY
+          "PrcCode" DESC
+      ) AS "RowNumDesc",
+      COALESCE(
+        SUM("SplitAmount") OVER (
+          PARTITION BY
+            "TransId",
+            "Line_ID"
+          ORDER BY
+            "PrcCode" ROWS BETWEEN UNBOUNDED PRECEDING
+            AND 1 PRECEDING
+        ),
+        0
+      ) AS "RestAmount"
+    FROM
+      journal_entries
+  ),
+  filtered_entries AS (
+    SELECT
+      "PrcCode",
+      "Account",
+      "AccountGroup",
+      "CostCenter",
+      "ProfitCenter",
+      "BrandCategory",
+      "ProductLine",
+      "CollectionType",
+      "MaterialClass",
+      "ItemText",
+      "PostingDate",
+      SUM(
+        CASE
+          WHEN "RowNumDesc" = 1 THEN ("TotalAmount" - "RestAmount")
+          ELSE "SplitAmount"
+        END
+      ) AS "Amount"
+    FROM
+      combined_entries
+    GROUP BY
+      "PrcCode",
+      "Account",
+      "AccountGroup",
+      "CostCenter",
+      "ProfitCenter",
+      "BrandCategory",
+      "ProductLine",
+      "CollectionType",
+      "MaterialClass",
+      "ItemText",
+      "PostingDate"
+    HAVING
+      SUM(
+        CASE
+          WHEN "RowNumDesc" = 1 THEN ("TotalAmount" - "RestAmount")
+          ELSE "SplitAmount"
+        END
+      ) <> 0 /* Exclude lines with balance 0 */
+  )
+  /* P&L Query */
 SELECT
-  DENSE_RANK() OVER (ORDER BY "PostingDate", "ItemText") AS "1_grouping",
+  DENSE_RANK() OVER (
+    ORDER BY
+      "PostingDate",
+      "ItemText"
+  ) AS "1_grouping",
   'E930' AS "2_company_code",
   'ZS' AS "3_document_type",
   "PostingDate" AS "4_document_date",
@@ -169,7 +195,12 @@ SELECT
   'S' AS "12_item_type",
   "Account" AS "13_account",
   NULL AS "14_special_gl_indicator",
-  (SELECT "MainCurncy" FROM OADM) AS "15_currency",
+  (
+    SELECT
+      "MainCurncy"
+    FROM
+      OADM
+  ) AS "15_currency",
   NULL AS "16_exchange_rate",
   "Amount" AS "17_amount",
   NULL AS "18_vat_code",

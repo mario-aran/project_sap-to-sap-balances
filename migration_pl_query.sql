@@ -1,4 +1,5 @@
 WITH
+  /* Mappings */
   accounts_mapping AS (
     SELECT
       '0' AS "Id",
@@ -20,6 +21,7 @@ WITH
     FROM
       SYS.DUMMY
   ),
+  /* Entries */
   reconciliation_entries AS (
     SELECT
       'P291100000' AS "Account",

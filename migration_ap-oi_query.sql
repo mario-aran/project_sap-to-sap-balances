@@ -1,4 +1,5 @@
 WITH
+  /* Mappings */
   payment_terms_mapping AS (
     SELECT
       '0' AS "Id",
@@ -6,6 +7,7 @@ WITH
     FROM
       SYS.DUMMY
   ),
+  /* Documents */
   marketing_documents AS (
     SELECT
       *
@@ -17,6 +19,7 @@ WITH
     FROM
       ORPC
   ),
+  /* Entries */
   reconciliation_entries AS (
     SELECT
       'S' AS "ItemType",

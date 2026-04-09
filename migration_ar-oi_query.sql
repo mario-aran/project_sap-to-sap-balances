@@ -1,4 +1,5 @@
 WITH
+  /* Documents */
   marketing_documents AS (
     SELECT
       *
@@ -10,6 +11,7 @@ WITH
     FROM
       ORIN
   ),
+  /* Entries */
   reconciliation_entries AS (
     SELECT
       'S' AS "ItemType",

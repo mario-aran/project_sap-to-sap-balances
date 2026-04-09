@@ -153,7 +153,7 @@ SELECT
   'E930' AS "2_company_code",
   'ZK' AS "3_document_type",
   "DocumentDate" AS "4_document_date",
-  '20260331' AS "5_posting_date", -- Change date based on filter
+  '20260331' AS "5_posting_date", -- Adjust date based on filter
   NULL AS "6_reverse_date",
   NULL AS "7_currency_date",
   "Reference" AS "8_reference",

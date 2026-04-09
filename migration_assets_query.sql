@@ -1,4 +1,5 @@
 WITH
+  /* Mappings */
   accounts_mapping AS (
     SELECT
       '0' AS "Id",
@@ -6,19 +7,20 @@ WITH
     FROM
       SYS.DUMMY
   ),
+  /* Entries */
   reconciliation_entries AS (
     SELECT
       'P291100003' AS "Account",
       'reconciliation' AS "AccountGroup",
       CAST(JDT1."Debit" - JDT1."Credit" AS BIGINT) * -1 AS "Amount",
-      OJDT."RefDate",
+      JDT1."RefDate",
       JDT1."Account" AS "ItemText"
     FROM
-      OJDT
-      INNER JOIN JDT1 ON OJDT."TransId" = JDT1."TransId"
-      INNER JOIN OACT ON JDT1."Account" = OACT."AcctCode"
+      JDT1
+      INNER JOIN OACT ON OACT."AcctCode" = JDT1."Account"
     WHERE
-      JDT1."Account" LIKE '102%' /* Only include asset accounts */
+      JDT1."Debit" <> JDT1."Credit" -- Exclude zero-balance lines
+      AND JDT1."Account" LIKE '102%' -- Keep only asset accounts
   ),
   journal_entries AS (
     SELECT
@@ -34,15 +36,15 @@ WITH
         WHEN OACT."GroupMask" = 8 THEN '08 other expenses'
       END AS "AccountGroup",
       CAST(JDT1."Debit" - JDT1."Credit" AS BIGINT) AS "Amount",
-      OJDT."RefDate",
+      JDT1."RefDate",
       JDT1."Account" AS "ItemText"
     FROM
-      OJDT
-      INNER JOIN JDT1 ON OJDT."TransId" = JDT1."TransId"
-      INNER JOIN OACT ON JDT1."Account" = OACT."AcctCode"
-      LEFT JOIN accounts_mapping am ON JDT1."Account" = am."Id"
+      JDT1
+      INNER JOIN OACT ON OACT."AcctCode" = JDT1."Account"
+      LEFT JOIN accounts_mapping am ON am."Id" = JDT1."Account"
     WHERE
-      JDT1."Account" LIKE '102%' /* Only include asset accounts */
+      JDT1."Debit" <> JDT1."Credit" -- Exclude zero-balance lines
+      AND JDT1."Account" LIKE '102%' -- Keep only asset accounts
   ),
   combined_entries AS (
     SELECT
@@ -55,22 +57,25 @@ WITH
     FROM
       journal_entries
   ),
-  filtered_entries AS (
+  grouped_entries AS (
     SELECT
-      "Account",
-      "ItemText",
-      "AccountGroup",
-      SUM("Amount") AS "Amount"
+      ce."Account",
+      ce."ItemText",
+      ce."AccountGroup",
+      OADM."MainCurncy" AS "Currency",
+      SUM(ce."Amount") AS "Amount"
     FROM
-      combined_entries
+      combined_entries ce
+      CROSS JOIN OADM
     WHERE
-      "RefDate" <= '2026-01-31' /* Filter by posting date */
+      ce."RefDate" <= '2026-03-31' -- Filter by posting date
     GROUP BY
-      "Account",
-      "ItemText",
-      "AccountGroup"
+      ce."Account",
+      ce."ItemText",
+      ce."AccountGroup",
+      OADM."MainCurncy"
     HAVING
-      SUM("Amount") <> 0
+      SUM(ce."Amount") <> 0 -- Exclude zero-balance amount
   )
   /* Main Query */
 SELECT
@@ -91,12 +96,7 @@ SELECT
   'S' AS "12_item_type",
   "Account" AS "13_account",
   NULL AS "14_special_gl_indicator",
-  (
-    SELECT
-      "MainCurncy"
-    FROM
-      OADM
-  ) AS "15_currency",
+  "Currency" AS "15_currency",
   NULL AS "16_exchange_rate",
   "Amount" AS "17_amount",
   NULL AS "18_vat_code",
@@ -152,7 +152,7 @@ SELECT
   NULL AS "68_invoice_receipt_date",
   "AccountGroup" AS "CHECKAccountGroup"
 FROM
-  filtered_entries
+  grouped_entries
 ORDER BY
   "ItemText",
   "AccountGroup"

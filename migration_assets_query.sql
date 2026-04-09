@@ -1,7 +1,5 @@
-/* CTEs */
 WITH
   accounts_mapping AS (
-    -- Place holder, replace with the actual mapping
     SELECT
       '0' AS "Id",
       NULL AS "MappedId"
@@ -74,7 +72,7 @@ WITH
     HAVING
       SUM("Amount") <> 0
   )
-  /* Assets Query */
+  /* Main Query */
 SELECT
   DENSE_RANK() OVER (
     ORDER BY

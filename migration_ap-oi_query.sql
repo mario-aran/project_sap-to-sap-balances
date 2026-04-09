@@ -1,7 +1,5 @@
-/* CTEs */
 WITH
   payment_terms_mapping AS (
-    -- Placeholder, replace with the actual mapping
     SELECT
       '0' AS "Id",
       NULL AS "MappedId"
@@ -90,8 +88,10 @@ WITH
       END AS "AccountGroup",
       TO_VARCHAR (OJDT."DueDate", 'YYYYMMDD') AS "BaselineDate",
       COALESCE(ptm."MappedId", 'Z999') AS "PaymentTerms",
-      /* Default dummy payment term */ 'B' AS "PaymentMethod",
-      /* Default vendor payment method */ COALESCE(LPAD (OCRD."U_ID_SAP_AFS1", 10, '0'), 'NOT MAPPED') || '-' || OCRD."CardCode" AS "ItemText",
+      /* Default dummy payment term */
+      'B' AS "PaymentMethod",
+      /* Default vendor payment method */
+      COALESCE(LPAD (OCRD."U_ID_SAP_AFS1", 10, '0'), 'NOT MAPPED') || '-' || OCRD."CardCode" AS "ItemText",
       REPLACE (
         REPLACE (
           TO_VARCHAR (
@@ -150,7 +150,7 @@ WITH
     FROM
       journal_entries
   )
-  /* AP Open Items Query */
+  /* Main Query */
 SELECT
   DENSE_RANK() OVER (
     ORDER BY

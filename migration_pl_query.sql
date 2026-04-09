@@ -1,7 +1,5 @@
-/* CTEs */
 WITH
   accounts_mapping AS (
-    -- Place holder, replace with the actual mapping
     SELECT
       '0' AS "Id",
       NULL AS "MappedId"
@@ -9,7 +7,6 @@ WITH
       SYS.DUMMY
   ),
   profit_centers_mapping AS (
-    -- Place holder, replace with the actual mapping
     SELECT
       '0' AS "Id",
       NULL AS "MappedId"
@@ -17,7 +14,6 @@ WITH
       SYS.DUMMY
   ),
   cost_centers_mapping AS (
-    -- Place holder, replace with the actual mapping
     SELECT
       '0' AS "Id",
       NULL AS "MappedId"
@@ -175,7 +171,7 @@ WITH
         END
       ) <> 0 /* Exclude lines with balance 0 */
   )
-  /* P&L Query */
+  /* Main Query */
 SELECT
   DENSE_RANK() OVER (
     ORDER BY

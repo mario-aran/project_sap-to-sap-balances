@@ -1,4 +1,3 @@
-/* CTEs */
 WITH
   marketing_documents AS (
     SELECT
@@ -137,7 +136,7 @@ WITH
     FROM
       journal_entries
   )
-  /* AR Open Items Query */
+  /* Main Query */
 SELECT
   DENSE_RANK() OVER (
     ORDER BY

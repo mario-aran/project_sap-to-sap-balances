@@ -7,6 +7,7 @@ WITH
     FROM
       SYS.DUMMY
   ),
+  /* Entries */
   reconciliation_entries AS (
     SELECT
       'P291100000' AS "Account",

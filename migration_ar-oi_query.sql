@@ -9,7 +9,7 @@ WITH
     SELECT
       *
     FROM
-      ORIN -- A/P Credit Memo
+      ORIN -- A/R Credit Memo
   ),
   /* Entries */
   reconciliation_entries AS (

@@ -42,6 +42,7 @@ WITH
     FROM
       JDT1
       INNER JOIN OACT ON OACT."AcctCode" = JDT1."Account"
+      INNER JOIN accounts_mapping am ON am."Id" = JDT1."Account" -- Exclude not-mapped accounts
     WHERE
       (JDT1."RefDate" BETWEEN '2026-01-01' AND '2026-03-31') -- Filter by posting date
       AND JDT1."Debit" <> JDT1."Credit" -- Exclude zero-balance lines
@@ -90,7 +91,7 @@ WITH
       INNER JOIN OACT ON OACT."AcctCode" = JDT1."Account"
       LEFT JOIN OOCR ON OOCR."OcrCode" = JDT1."ProfitCode"
       LEFT JOIN OCR1 ON OCR1."OcrCode" = OOCR."OcrCode"
-      LEFT JOIN accounts_mapping am ON am."Id" = JDT1."Account"
+      INNER JOIN accounts_mapping am ON am."Id" = JDT1."Account" -- Exclude not-mapped accounts
       LEFT JOIN cost_centers_mapping ccm ON ccm."Id" = OCR1."PrcCode"
       LEFT JOIN profit_centers_mapping pcm ON pcm."Id" = OCR1."PrcCode"
     WHERE

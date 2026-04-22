@@ -24,8 +24,8 @@ WITH
           TO_VARCHAR (
             CAST(
               CASE
-                WHEN JDT1."FCCurrency" IS NOT NULL THEN JDT1."BalFcDeb" - JDT1."BalFcCred"
-                ELSE JDT1."BalDueDeb" - JDT1."BalDueCred"
+                WHEN JDT1."FCCurrency" IS NOT NULL THEN (JDT1."BalFcDeb" - JDT1."BalFcCred")
+                ELSE (JDT1."BalDueDeb" - JDT1."BalDueCred")
               END AS DECIMAL(19, 2)
             ) * -1
           ),
@@ -37,7 +37,7 @@ WITH
       ) AS "Amount",
       CAST(
         CASE
-          WHEN JDT1."FCCurrency" IS NOT NULL THEN JDT1."BalDueDeb" - JDT1."BalDueCred"
+          WHEN JDT1."FCCurrency" IS NOT NULL THEN (JDT1."BalDueDeb" - JDT1."BalDueCred")
         END AS BIGINT
       ) * -1 AS "AmountDI",
       CAST(JDT1."BalDueDeb" - JDT1."BalDueCred" AS BIGINT) * -1 AS "AmountCLP",
@@ -47,15 +47,17 @@ WITH
       TO_VARCHAR (JDT1."TaxDate", 'YYYYMMDD') AS "DocumentDate",
       COALESCE(JDT1."FCCurrency", OADM."MainCurncy") AS "Currency",
       CASE
-        WHEN md."TransId" IS NOT NULL THEN md."FolioPref" || '-' || md."FolioNum"
+        WHEN md."TransId" IS NOT NULL THEN (md."FolioPref" || '-' || md."FolioNum")
         ELSE TO_VARCHAR (JDT1."TransId")
       END AS "Reference"
     FROM
       JDT1
       CROSS JOIN OADM
       INNER JOIN OACT ON OACT."AcctCode" = JDT1."Account"
-      INNER JOIN OCRD ON OCRD."CardCode" = JDT1."ShortName"
-      AND OCRD."CardType" = 'C' -- Keep only customer lines
+      INNER JOIN OCRD ON (
+        OCRD."CardCode" = JDT1."ShortName"
+        AND OCRD."CardType" = 'C'
+      ) -- Keep only customer lines
       LEFT JOIN marketing_documents md ON md."TransId" = JDT1."TransId"
     WHERE
       JDT1."RefDate" <= '2026-03-31' -- Filter by posting date
@@ -82,8 +84,8 @@ WITH
           TO_VARCHAR (
             CAST(
               CASE
-                WHEN JDT1."FCCurrency" IS NOT NULL THEN JDT1."BalFcDeb" - JDT1."BalFcCred"
-                ELSE JDT1."BalDueDeb" - JDT1."BalDueCred"
+                WHEN JDT1."FCCurrency" IS NOT NULL THEN (JDT1."BalFcDeb" - JDT1."BalFcCred")
+                ELSE (JDT1."BalDueDeb" - JDT1."BalDueCred")
               END AS DECIMAL(19, 2)
             )
           ),
@@ -95,7 +97,7 @@ WITH
       ) AS "Amount",
       CAST(
         CASE
-          WHEN JDT1."FCCurrency" IS NOT NULL THEN JDT1."BalDueDeb" - JDT1."BalDueCred"
+          WHEN JDT1."FCCurrency" IS NOT NULL THEN (JDT1."BalDueDeb" - JDT1."BalDueCred")
         END AS BIGINT
       ) AS "AmountDI",
       CAST(JDT1."BalDueDeb" - JDT1."BalDueCred" AS BIGINT) AS "AmountCLP",
@@ -105,15 +107,17 @@ WITH
       TO_VARCHAR (JDT1."TaxDate", 'YYYYMMDD') AS "DocumentDate",
       COALESCE(JDT1."FCCurrency", OADM."MainCurncy") AS "Currency",
       CASE
-        WHEN md."TransId" IS NOT NULL THEN md."FolioPref" || '-' || md."FolioNum"
+        WHEN md."TransId" IS NOT NULL THEN (md."FolioPref" || '-' || md."FolioNum")
         ELSE TO_VARCHAR (JDT1."TransId")
       END AS "Reference"
     FROM
       JDT1
       CROSS JOIN OADM
       INNER JOIN OACT ON OACT."AcctCode" = JDT1."Account"
-      INNER JOIN OCRD ON OCRD."CardCode" = JDT1."ShortName"
-      AND OCRD."CardType" = 'C' -- Keep only customer lines
+      INNER JOIN OCRD ON (
+        OCRD."CardCode" = JDT1."ShortName"
+        AND OCRD."CardType" = 'C'
+      ) -- Keep only customer lines
       LEFT JOIN marketing_documents md ON md."TransId" = JDT1."TransId"
     WHERE
       JDT1."RefDate" <= '2026-03-31' -- Filter by posting date

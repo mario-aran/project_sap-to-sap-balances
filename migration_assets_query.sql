@@ -153,6 +153,8 @@ SELECT
   "AccountGroup" AS "CHECKAccountGroup"
 FROM
   grouped_entries
+  -- WHERE
+  --   "Account" = 'NOT MAPPED' -- draft-only: Detect non-mapped
 ORDER BY
   "ItemText",
   "AccountGroup"

@@ -57,7 +57,7 @@ WITH
       TO_VARCHAR (JDT1."TaxDate", 'YYYYMMDD') AS "DocumentDate",
       COALESCE(JDT1."FCCurrency", OADM."MainCurncy") AS "Currency",
       CASE
-        WHEN md."TransId" IS NOT NULL THEN (md."FolioPref" || '-' || md."FolioNum")
+        WHEN md."TransId" IS NOT NULL THEN (md."ObjType" || '-' || md."DocNum")
         ELSE TO_VARCHAR (JDT1."TransId")
       END AS "Reference"
     FROM
@@ -119,7 +119,7 @@ WITH
       TO_VARCHAR (JDT1."TaxDate", 'YYYYMMDD') AS "DocumentDate",
       COALESCE(JDT1."FCCurrency", OADM."MainCurncy") AS "Currency",
       CASE
-        WHEN md."TransId" IS NOT NULL THEN (md."FolioPref" || '-' || md."FolioNum")
+        WHEN md."TransId" IS NOT NULL THEN (md."ObjType" || '-' || md."DocNum")
         ELSE TO_VARCHAR (JDT1."TransId")
       END AS "Reference"
     FROM

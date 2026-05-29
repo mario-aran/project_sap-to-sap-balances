@@ -57,7 +57,7 @@ WITH
       TO_VARCHAR (JDT1."TaxDate", 'YYYYMMDD') AS "DocumentDate",
       COALESCE(JDT1."FCCurrency", OADM."MainCurncy") AS "Currency",
       CASE
-        WHEN md."TransId" IS NOT NULL THEN (md."ObjType" || '-' || md."DocNum")
+        WHEN md."TransId" IS NOT NULL THEN (md."FolioPref" || '-' || md."FolioNum")
         ELSE TO_VARCHAR (JDT1."TransId")
       END AS "Reference"
     FROM
@@ -70,7 +70,7 @@ WITH
       ) -- Keep only vendor lines
       LEFT JOIN marketing_documents md ON md."TransId" = JDT1."TransId"
     WHERE
-      JDT1."RefDate" <= '2026-03-31' -- Filter by posting date
+      JDT1."RefDate" <= '2026-05-31' -- Filter by posting date
       AND JDT1."BalDueDeb" <> JDT1."BalDueCred" -- Keep only open lines
   ),
   journal_entries AS (
@@ -118,8 +118,8 @@ WITH
       OCRD."CardCode",
       TO_VARCHAR (JDT1."TaxDate", 'YYYYMMDD') AS "DocumentDate",
       COALESCE(JDT1."FCCurrency", OADM."MainCurncy") AS "Currency",
-      CASE
-        WHEN md."TransId" IS NOT NULL THEN (md."ObjType" || '-' || md."DocNum")
+        CASE
+        WHEN md."TransId" IS NOT NULL THEN (md."FolioPref" || '-' || md."FolioNum")
         ELSE TO_VARCHAR (JDT1."TransId")
       END AS "Reference"
     FROM
@@ -133,7 +133,7 @@ WITH
       LEFT JOIN marketing_documents md ON md."TransId" = JDT1."TransId"
       LEFT JOIN payment_terms_mapping ptm ON ptm."Id" = md."GroupNum"
     WHERE
-      JDT1."RefDate" <= '2026-03-31' -- Filter by posting date
+      JDT1."RefDate" <= '2026-05-31' -- Filter by posting date
       AND JDT1."BalDueDeb" <> JDT1."BalDueCred" -- Keep only open lines
   ),
   combined_entries AS (
@@ -157,7 +157,7 @@ SELECT
   'E930' AS "2_company_code",
   'ZK' AS "3_document_type",
   "DocumentDate" AS "4_document_date",
-  '20260331' AS "5_posting_date", -- Adjust date based on filter
+  '20260531' AS "5_posting_date", -- Adjust date based on filter
   NULL AS "6_reverse_date",
   NULL AS "7_currency_date",
   "Reference" AS "8_reference",

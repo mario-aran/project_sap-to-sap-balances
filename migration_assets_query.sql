@@ -5,7 +5,7 @@ WITH
       '0' AS "Id",
       NULL AS "MappedId"
     FROM
-      SYS.DUMMY
+      DUMMY
   ),
   /* Entries */
   reconciliation_entries AS (

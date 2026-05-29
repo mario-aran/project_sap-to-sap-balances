@@ -5,21 +5,21 @@ WITH
       '0' AS "Id",
       NULL AS "MappedId"
     FROM
-      SYS.DUMMY
+      DUMMY
   ),
   cost_centers_mapping AS (
     SELECT
       '0' AS "Id",
       NULL AS "MappedId"
     FROM
-      SYS.DUMMY
+      DUMMY
   ),
   profit_centers_mapping AS (
     SELECT
       '0' AS "Id",
       NULL AS "MappedId"
     FROM
-      SYS.DUMMY
+      DUMMY
   ),
   /* Entries */
   reconciliation_entries AS (

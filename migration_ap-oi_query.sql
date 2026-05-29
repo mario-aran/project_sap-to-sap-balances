@@ -5,7 +5,7 @@ WITH
       '0' AS "Id",
       NULL AS "MappedId"
     FROM
-      SYS.DUMMY
+      DUMMY
   ),
   /* Documents */
   marketing_documents AS (

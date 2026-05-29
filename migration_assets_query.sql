@@ -69,7 +69,7 @@ WITH
       combined_entries ce
       CROSS JOIN OADM
     WHERE
-      ce."RefDate" <= '2026-03-31' -- Filter by posting date
+      ce."RefDate" <= '2026-05-31' -- Filter by posting date
     GROUP BY
       ce."Account",
       ce."ItemText",
@@ -86,8 +86,8 @@ SELECT
   ) AS "1_grouping",
   'E930' AS "2_company_code",
   'ZA' AS "3_document_type",
-  '20260331' AS "4_document_date", -- Adjust date based on filter
-  '20260331' AS "5_posting_date", -- Adjust date based on filter
+  '20260531' AS "4_document_date", -- Adjust date based on filter
+  '20260531' AS "5_posting_date", -- Adjust date based on filter
   NULL AS "6_reverse_date",
   NULL AS "7_currency_date",
   'AA-ACCTS' AS "8_reference",

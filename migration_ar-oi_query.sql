@@ -60,7 +60,7 @@ WITH
       ) -- Keep only customer lines
       LEFT JOIN marketing_documents md ON md."TransId" = JDT1."TransId"
     WHERE
-      JDT1."RefDate" <= '2026-03-31' -- Filter by posting date
+      JDT1."RefDate" <= '2026-05-31' -- Filter by posting date
       AND JDT1."BalDueDeb" <> JDT1."BalDueCred" -- Keep only open lines
   ),
   journal_entries AS (
@@ -120,7 +120,7 @@ WITH
       ) -- Keep only customer lines
       LEFT JOIN marketing_documents md ON md."TransId" = JDT1."TransId"
     WHERE
-      JDT1."RefDate" <= '2026-03-31' -- Filter by posting date
+      JDT1."RefDate" <= '2026-05-31' -- Filter by posting date
       AND JDT1."BalDueDeb" <> JDT1."BalDueCred" -- Keep only open lines
   ),
   combined_entries AS (
@@ -144,7 +144,7 @@ SELECT
   'E930' AS "2_company_code",
   'Z1' AS "3_document_type",
   "DocumentDate" AS "4_document_date",
-  '20260331' AS "5_posting_date", -- Adjust date based on filter
+  '20260531' AS "5_posting_date", -- Adjust date based on filter
   NULL AS "6_reverse_date",
   NULL AS "7_currency_date",
   "Reference" AS "8_reference",

@@ -44,7 +44,9 @@ WITH
       INNER JOIN OACT ON OACT."AcctCode" = JDT1."Account"
       INNER JOIN accounts_mapping am ON am."Id" = JDT1."Account" -- Exclude not-mapped accounts
     WHERE
-      (JDT1."RefDate" BETWEEN '2026-01-01' AND '2026-05-31') -- Filter by posting date
+      (
+        JDT1."RefDate" BETWEEN '2026-01-01' AND '2026-05-31'
+      ) -- Filter by posting date
       AND JDT1."Debit" <> JDT1."Credit" -- Exclude zero-balance lines
       AND JDT1."TransType" NOT IN (-2, -3) -- Exclude opening/closing balance transactions
       AND OACT."GroupMask" IN (4, 5, 6, 7, 8) -- Keep only P&L accounts
@@ -95,7 +97,9 @@ WITH
       LEFT JOIN cost_centers_mapping ccm ON ccm."Id" = OCR1."PrcCode"
       LEFT JOIN profit_centers_mapping pcm ON pcm."Id" = OCR1."PrcCode"
     WHERE
-      (JDT1."RefDate" BETWEEN '2026-01-01' AND '2026-05-31') -- Filter by posting date
+      (
+        JDT1."RefDate" BETWEEN '2026-01-01' AND '2026-05-31'
+      ) -- Filter by posting date
       AND JDT1."Debit" <> JDT1."Credit" -- Exclude zero-balance lines
       AND JDT1."TransType" NOT IN (-2, -3) -- Exclude opening/closing balance transactions
       AND OACT."GroupMask" IN (4, 5, 6, 7, 8) -- Keep only P&L accounts

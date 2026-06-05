@@ -1,23 +1,33 @@
 WITH
+  /* Mappings */
+  payment_terms_mapping AS (
+    SELECT
+      '0' AS "Id",
+      NULL AS "MappedId"
+    FROM
+      DUMMY
+  ),
   /* Documents */
   marketing_documents AS (
     SELECT
       *
     FROM
-      OINV -- A/R Invoice
+      OPCH -- A/P Invoice
     UNION ALL
     SELECT
       *
     FROM
-      ORIN -- A/R Credit Memo
+      ORPC -- A/P Credit Memo
   ),
   /* Entries */
   reconciliation_entries AS (
     SELECT
       'S' AS "ItemType",
-      'P291100001' AS "Account",
+      'P291100002' AS "Account",
       'reconciliation' AS "AccountGroup",
       NULL AS "BaselineDate",
+      NULL AS "PaymentTerms",
+      NULL AS "PaymentMethod",
       OCRD."CardCode" AS "ItemText",
       REPLACE (
         REPLACE (
@@ -56,8 +66,8 @@ WITH
       INNER JOIN OACT ON OACT."AcctCode" = JDT1."Account"
       INNER JOIN OCRD ON (
         OCRD."CardCode" = JDT1."ShortName"
-        AND OCRD."CardType" = 'C'
-      ) -- Keep only customer lines
+        AND OCRD."CardType" = 'S'
+      ) -- Keep only vendor lines
       LEFT JOIN marketing_documents md ON md."TransId" = JDT1."TransId"
     WHERE
       JDT1."RefDate" <= '2026-05-31' -- Filter by posting date
@@ -65,7 +75,7 @@ WITH
   ),
   journal_entries AS (
     SELECT
-      'D' AS "ItemType",
+      'K' AS "ItemType",
       COALESCE(OCRD."U_ID_SAP_AFS1", 'NOT MAPPED') AS "Account",
       CASE
         WHEN OACT."GroupMask" = 1 THEN '01 assets'
@@ -78,7 +88,12 @@ WITH
         WHEN OACT."GroupMask" = 8 THEN '08 other expenses'
       END AS "AccountGroup",
       TO_VARCHAR (JDT1."DueDate", 'YYYYMMDD') AS "BaselineDate",
-      COALESCE(LPAD (OCRD."U_ID_SAP_AFS1", 10, '0'), 'NOT MAPPED') || '-' || OCRD."CardCode" AS "ItemText",
+      COALESCE(ptm."MappedId", 'Z999') AS "PaymentTerms", -- Default dummy payment term
+      'B' AS "PaymentMethod", -- Default vendor payment method
+      COALESCE(
+        LPAD (OCRD."U_ID_SAP_AFS1", 10, '0'),
+        'NOT MAPPED'
+      ) || '-' || OCRD."CardCode" AS "ItemText",
       REPLACE (
         REPLACE (
           TO_VARCHAR (
@@ -116,9 +131,10 @@ WITH
       INNER JOIN OACT ON OACT."AcctCode" = JDT1."Account"
       INNER JOIN OCRD ON (
         OCRD."CardCode" = JDT1."ShortName"
-        AND OCRD."CardType" = 'C'
-      ) -- Keep only customer lines
+        AND OCRD."CardType" = 'S'
+      ) -- Keep only vendor lines
       LEFT JOIN marketing_documents md ON md."TransId" = JDT1."TransId"
+      LEFT JOIN payment_terms_mapping ptm ON ptm."Id" = md."GroupNum"
     WHERE
       JDT1."RefDate" <= '2026-05-31' -- Filter by posting date
       AND JDT1."BalDueDeb" <> JDT1."BalDueCred" -- Keep only open lines
@@ -142,13 +158,13 @@ SELECT
       "TransId"
   ) AS "1_grouping",
   'E930' AS "2_company_code",
-  'Z1' AS "3_document_type",
+  'ZK' AS "3_document_type",
   "DocumentDate" AS "4_document_date",
   '20260531' AS "5_posting_date", -- Adjust date based on filter
   NULL AS "6_reverse_date",
   NULL AS "7_currency_date",
   "Reference" AS "8_reference",
-  'AR OI-Migration' AS "9_doc_header_text",
+  'AP OI-Migration' AS "9_doc_header_text",
   NULL AS "10_local_ledger",
   NULL AS "11_posting_key",
   "ItemType" AS "12_item_type",
@@ -186,9 +202,9 @@ SELECT
   NULL AS "44_trading_partner",
   NULL AS "45_reference_key",
   NULL AS "46_key_ref_1",
-  NULL AS "47_payment_terms",
+  "PaymentTerms" AS "47_payment_terms",
   "BaselineDate" AS "48_baseline_date",
-  NULL AS "49_payment_method",
+  "PaymentMethod" AS "49_payment_method",
   NULL AS "50_payment_block",
   NULL AS "51_segment",
   NULL AS "52_cross_company",

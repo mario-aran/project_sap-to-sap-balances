@@ -1344,7 +1344,6 @@ WITH
     SELECT
       JDT1."Account" AS "ItemText",
       JDT1."Debit" - JDT1."Credit" AS "Amount",
-      COALESCE(am."MappedId", 'NOT MAPPED') AS "Account",
       OADM."MainCurncy" AS "Currency",
       CASE
         WHEN OACT."GroupMask" = 1 THEN '01 assets'
@@ -1355,7 +1354,8 @@ WITH
         WHEN OACT."GroupMask" = 6 THEN '06 expenses'
         WHEN OACT."GroupMask" = 7 THEN '07 other income'
         WHEN OACT."GroupMask" = 8 THEN '08 other expenses'
-      END AS "AccountGroup"
+      END AS "AccountGroup",
+      COALESCE(am."MappedId", 'NOT MAPPED') AS "Account"
     FROM
       JDT1
       CROSS JOIN OADM
@@ -1376,26 +1376,26 @@ WITH
     SELECT
       "ItemText",
       "Amount" * -1 AS "Amount",
-      'P291100003' AS "Account", -- FA reconciliation account
       "Currency",
-      'reconciliation' AS "AccountGroup"
+      'reconciliation' AS "AccountGroup",
+      'P291100003' AS "Account" -- FA reconciliation account
     FROM
       entries
   ),
   reconciled_entries2 AS (
     SELECT
       SUM("Amount") AS "Amount",
-      "Account",
-      "AccountGroup",
       "ItemText",
-      "Currency"
+      "Currency",
+      "AccountGroup",
+      "Account"
     FROM
       reconciled_entries
     GROUP BY
-      "Account",
-      "AccountGroup",
       "ItemText",
-      "Currency"
+      "Currency",
+      "AccountGroup",
+      "Account"
     HAVING
       SUM("Amount") <> 0 -- Exclude zero-balance sum
   ),

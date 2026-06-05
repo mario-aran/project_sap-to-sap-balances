@@ -1365,10 +1365,10 @@ WITH
     WHERE
       JDT1."RefDate" <= '2026-05-31' -- Filter by posting date
       AND JDT1."Debit" <> JDT1."Credit" -- Exclude zero-balance lines
-      AND JDT1."Account" NOT LIKE '102%' -- Exclude FA account lines
-      AND OACT."GroupMask" IN (1, 2, 3) -- Keep only BS account lines
-      AND OCRD."CardCode" IS NULL -- Exclude bp account lines
-      AND am."Id" IS NOT NULL -- WARNING: LUT only, exclude unmapped account lines
+      AND JDT1."Account" NOT LIKE '102%' -- Exclude FA accounts
+      AND OACT."GroupMask" IN (1, 2, 3) -- Keep only BS accounts
+      AND OCRD."CardCode" IS NULL -- Exclude bp lines
+      AND am."Id" IS NOT NULL -- WARNING: LUT only, exclude unmapped accounts
   ),
   reconciled_entries AS (
     SELECT

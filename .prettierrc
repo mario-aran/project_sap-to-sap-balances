@@ -1,0 +1,10 @@
+{
+  "singleQuote": true,
+
+  "newlineBeforeSemicolon": true,
+  "keywordCase": "upper",
+  "functionCase": "upper",
+  "dataTypeCase": "upper",
+
+  "plugins": ["prettier-plugin-sh", "prettier-plugin-sql"]
+}

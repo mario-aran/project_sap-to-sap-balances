@@ -1,0 +1,4 @@
+# docs: https://prettier.io/docs/ignore
+# note: Add what's not listed in ".gitignore"
+
+**/pnpm-lock.yaml

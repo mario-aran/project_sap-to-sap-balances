@@ -1364,7 +1364,7 @@ WITH
     WHERE
       JDT1."RefDate" <= '2026-05-31' -- Filter by posting date
       AND JDT1."Debit" <> JDT1."Credit" -- Exclude zero-balance lines
-      AND JDT1."Account" LIKE '102%' -- Keep only FA accounts
+      AND JDT1."Account" LIKE '102%' -- Keep only FA account lines
       AND am."Id" IS NOT NULL -- WARNING: LUT only, exclude unmapped account lines
   ),
   reconciled_entries AS (

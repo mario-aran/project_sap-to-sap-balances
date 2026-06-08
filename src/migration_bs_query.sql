@@ -1417,12 +1417,12 @@ WITH
   query AS (
     SELECT
       "Grouping",
-      'E930' AS "CompanyCode",
-      'ZS' AS "DocumentType",
-      '20260531' AS "PostingDate", -- Adjust based on the posting date filter
+      'E930' AS "CompanyCode", -- MGLX company code
+      'ZS' AS "DocumentType", -- BS document type
+      '20260531' AS "PostingDate", -- Adjust based on posting date filter
       'BS-ACCTS' AS "Reference",
       'BS-Migration' AS "DocHeaderText",
-      'S' AS "ItemType",
+      'S' AS "ItemType", -- G/L item type
       "Account",
       "Currency",
       CAST("Amount" AS BIGINT) AS "Amount",

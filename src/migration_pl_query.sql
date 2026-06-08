@@ -1866,14 +1866,16 @@ WITH
         WHEN ROW_NUMBER() OVER (
           PARTITION BY
             "TransId",
-            "Line_ID"
+            "Line_ID",
+            "AccountGroup"
           ORDER BY
             "PrcCode" DESC
         ) = 1 THEN "LineAmount" - COALESCE(
           SUM("LineAmountSplit") OVER (
             PARTITION BY
               "TransId",
-              "Line_ID"
+              "Line_ID",
+              "AccountGroup"
             ORDER BY
               "PrcCode" ROWS BETWEEN UNBOUNDED PRECEDING
               AND 1 PRECEDING

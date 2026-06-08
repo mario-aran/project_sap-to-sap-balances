@@ -1,14 +1,110 @@
 WITH
   /* Mappings */
-  payment_terms_mapping AS (
+  ap_payment_terms_mapping AS (
     SELECT
-      '0' AS "Id",
-      NULL AS "MappedId"
+      '-1' AS "Id",
+      'K090' AS "MappedId"
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '8',
+      'K001'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '10',
+      'K300'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '11',
+      'K074'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '12',
+      'K027'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '13',
+      'K300'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '14',
+      'K006'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '16',
+      'K008'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '17',
+      'K004'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '18',
+      'K100'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '20',
+      'K005'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '21',
+      'K022'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '22',
+      'K092'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '23',
+      'K092'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '26',
+      'K091'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '27',
+      'K092'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '29',
+      'K090'
     FROM
       DUMMY
   ),
   /* Documents */
-  marketing_documents AS (
+  documents AS (
     SELECT
       *
     FROM
@@ -20,63 +116,25 @@ WITH
       ORPC -- A/P Credit Memo
   ),
   /* Entries */
-  reconciliation_entries AS (
+  entries AS (
     SELECT
-      'S' AS "ItemType",
-      'P291100002' AS "Account",
-      'reconciliation' AS "AccountGroup",
-      NULL AS "BaselineDate",
-      NULL AS "PaymentTerms",
-      NULL AS "PaymentMethod",
-      OCRD."CardCode" AS "ItemText",
-      REPLACE (
-        REPLACE (
-          TO_VARCHAR (
-            CAST(
-              CASE
-                WHEN JDT1."FCCurrency" IS NOT NULL THEN (JDT1."BalFcDeb" - JDT1."BalFcCred")
-                ELSE (JDT1."BalDueDeb" - JDT1."BalDueCred")
-              END AS DECIMAL(19, 2)
-            ) * -1
-          ),
-          '.00',
-          ''
-        ),
-        '.',
-        ','
-      ) AS "Amount",
-      CAST(
-        CASE
-          WHEN JDT1."FCCurrency" IS NOT NULL THEN (JDT1."BalDueDeb" - JDT1."BalDueCred")
-        END AS BIGINT
-      ) * -1 AS "AmountDI",
-      CAST(JDT1."BalDueDeb" - JDT1."BalDueCred" AS BIGINT) * -1 AS "AmountCLP",
+      COALESCE(aptm."MappedId", 'Z999') AS "PaymentTerms", -- Default dummy value
+      'B' AS "PaymentMethod", -- Default value
       JDT1."TransId",
       JDT1."Line_ID",
-      OCRD."CardCode",
       TO_VARCHAR (JDT1."TaxDate", 'YYYYMMDD') AS "DocumentDate",
+      TO_VARCHAR (JDT1."DueDate", 'YYYYMMDD') AS "BaselineDate",
       COALESCE(JDT1."FCCurrency", OADM."MainCurncy") AS "Currency",
-      CASE
-        WHEN md."TransId" IS NOT NULL THEN (md."FolioPref" || '-' || md."FolioNum")
-        ELSE TO_VARCHAR (JDT1."TransId")
-      END AS "Reference"
-    FROM
-      JDT1
-      CROSS JOIN OADM
-      INNER JOIN OACT ON OACT."AcctCode" = JDT1."Account"
-      INNER JOIN OCRD ON (
-        OCRD."CardCode" = JDT1."ShortName"
-        AND OCRD."CardType" = 'S'
-      ) -- Keep only vendor lines
-      LEFT JOIN marketing_documents md ON md."TransId" = JDT1."TransId"
-    WHERE
-      JDT1."RefDate" <= '2026-05-31' -- Filter by posting date
-      AND JDT1."BalDueDeb" <> JDT1."BalDueCred" -- Keep only open lines
-  ),
-  journal_entries AS (
-    SELECT
-      'K' AS "ItemType",
+      OCRD."CardCode",
       COALESCE(OCRD."U_ID_SAP_AFS1", 'NOT MAPPED') AS "Account",
+      COALESCE(
+        LPAD (OCRD."U_ID_SAP_AFS1", 10, '0'),
+        'NOT MAPPED'
+      ) || '-' || OCRD."CardCode" AS "ItemText",
+      CASE
+        WHEN d."TransId" IS NOT NULL THEN d."FolioPref" || '-' || d."FolioNum"
+        ELSE TO_VARCHAR (JDT1."TransId")
+      END AS "Reference",
       CASE
         WHEN OACT."GroupMask" = 1 THEN '01 assets'
         WHEN OACT."GroupMask" = 2 THEN '02 liabilities'
@@ -87,84 +145,106 @@ WITH
         WHEN OACT."GroupMask" = 7 THEN '07 other income'
         WHEN OACT."GroupMask" = 8 THEN '08 other expenses'
       END AS "AccountGroup",
-      TO_VARCHAR (JDT1."DueDate", 'YYYYMMDD') AS "BaselineDate",
-      COALESCE(ptm."MappedId", 'Z999') AS "PaymentTerms", -- Default dummy payment term
-      'B' AS "PaymentMethod", -- Default vendor payment method
-      COALESCE(
-        LPAD (OCRD."U_ID_SAP_AFS1", 10, '0'),
-        'NOT MAPPED'
-      ) || '-' || OCRD."CardCode" AS "ItemText",
-      REPLACE (
-        REPLACE (
-          TO_VARCHAR (
-            CAST(
-              CASE
-                WHEN JDT1."FCCurrency" IS NOT NULL THEN (JDT1."BalFcDeb" - JDT1."BalFcCred")
-                ELSE (JDT1."BalDueDeb" - JDT1."BalDueCred")
-              END AS DECIMAL(19, 2)
-            )
-          ),
-          '.00',
-          ''
-        ),
-        '.',
-        ','
-      ) AS "Amount",
-      CAST(
-        CASE
-          WHEN JDT1."FCCurrency" IS NOT NULL THEN (JDT1."BalDueDeb" - JDT1."BalDueCred")
-        END AS BIGINT
-      ) AS "AmountDI",
-      CAST(JDT1."BalDueDeb" - JDT1."BalDueCred" AS BIGINT) AS "AmountCLP",
-      JDT1."TransId",
-      JDT1."Line_ID",
-      OCRD."CardCode",
-      TO_VARCHAR (JDT1."TaxDate", 'YYYYMMDD') AS "DocumentDate",
-      COALESCE(JDT1."FCCurrency", OADM."MainCurncy") AS "Currency",
+      JDT1."BalDueDeb" - JDT1."BalDueCred" AS "AmountLocal",
       CASE
-        WHEN md."TransId" IS NOT NULL THEN (md."FolioPref" || '-' || md."FolioNum")
-        ELSE TO_VARCHAR (JDT1."TransId")
-      END AS "Reference"
+        WHEN JDT1."FCCurrency" IS NOT NULL THEN JDT1."BalDueDeb" - JDT1."BalDueCred"
+      END AS "AmountDi",
+      CASE
+        WHEN JDT1."FCCurrency" IS NOT NULL THEN JDT1."BalFcDeb" - JDT1."BalFcCred"
+        ELSE JDT1."BalDueDeb" - JDT1."BalDueCred"
+      END AS "Amount"
     FROM
       JDT1
       CROSS JOIN OADM
       INNER JOIN OACT ON OACT."AcctCode" = JDT1."Account"
-      INNER JOIN OCRD ON (
-        OCRD."CardCode" = JDT1."ShortName"
-        AND OCRD."CardType" = 'S'
-      ) -- Keep only vendor lines
-      LEFT JOIN marketing_documents md ON md."TransId" = JDT1."TransId"
-      LEFT JOIN payment_terms_mapping ptm ON ptm."Id" = md."GroupNum"
+      INNER JOIN OCRD ON OCRD."CardCode" = JDT1."ShortName"
+      LEFT JOIN documents d ON d."TransId" = JDT1."TransId"
+      LEFT JOIN ap_payment_terms_mapping aptm ON aptm."Id" = d."GroupNum"
     WHERE
       JDT1."RefDate" <= '2026-05-31' -- Filter by posting date
-      AND JDT1."BalDueDeb" <> JDT1."BalDueCred" -- Keep only open lines
+      AND JDT1."BalDueDeb" <> JDT1."BalDueCred" -- Exclude zero-balance due lines
+      AND OCRD."CardType" = 'S' -- Keep only vendor lines
+      AND OCRD."U_ID_SAP_AFS1" IS NOT NULL -- WARNING: LUT only, exclude unmapped bps
   ),
-  combined_entries AS (
+  reconciled_entries AS (
     SELECT
+      'K' AS "ItemType", -- Vendor item type
       *
     FROM
-      reconciliation_entries
+      entries
     UNION ALL
     SELECT
-      *
+      'S' AS "ItemType", -- G/L item type
+      NULL AS "PaymentTerms",
+      NULL AS "PaymentMethod",
+      "TransId",
+      "Line_ID",
+      "DocumentDate",
+      NULL AS "BaselineDate",
+      "Currency",
+      "CardCode",
+      'P291100002' AS "Account", -- Vendor reconciliation account
+      "ItemText",
+      "Reference",
+      'reconciliation' AS "AccountGroup",
+      "AmountLocal" * -1 AS "AmountLocal",
+      "AmountDi" * -1 AS "AmountDi",
+      "Amount" * -1 AS "Amount"
     FROM
-      journal_entries
-  )
-  /* Main Query */
-SELECT
-  DENSE_RANK() OVER (
+      entries
+  ),
+  /* Calculations */
+  calc AS (
+    SELECT
+      *,
+      DENSE_RANK() OVER (
+        ORDER BY
+          "CardCode",
+          "TransId"
+      ) AS "Grouping"
+    FROM
+      reconciled_entries
+  ),
+  /* Query */
+  query AS (
+    SELECT
+      "Grouping",
+      'E930' AS "CompanyCode", -- MGLX company code
+      'ZK' AS "DocumentType", -- Vendor document type
+      "DocumentDate",
+      '20260531' AS "PostingDate", -- Adjust based on posting date filter
+      "Reference",
+      'AP OI-Migration' AS "DocHeaderText",
+      "ItemType",
+      "Account",
+      "Currency",
+      REPLACE (CAST("Amount" AS FLOAT), '.', ',') AS "Amount",
+      "ItemText",
+      "PaymentTerms",
+      "BaselineDate",
+      "PaymentMethod",
+      CAST("AmountDi" AS BIGINT) AS "AmountDi",
+      "AccountGroup" AS "CheckAccountGroup",
+      "CardCode" AS "CheckBusinessPartner",
+      CAST("AmountLocal" AS BIGINT) AS "CheckAmountLocal"
+    FROM
+      calc
     ORDER BY
       "CardCode",
-      "TransId"
-  ) AS "1_grouping",
-  'E930' AS "2_company_code",
-  'ZK' AS "3_document_type",
+      "TransId",
+      "Line_ID",
+      "ItemType"
+  )
+SELECT
+  "Grouping" AS "1_grouping",
+  "CompanyCode" AS "2_company_code",
+  "DocumentType" AS "3_document_type",
   "DocumentDate" AS "4_document_date",
-  '20260531' AS "5_posting_date", -- Adjust date based on filter
+  "PostingDate" AS "5_posting_date",
   NULL AS "6_reverse_date",
   NULL AS "7_currency_date",
   "Reference" AS "8_reference",
-  'AP OI-Migration' AS "9_doc_header_text",
+  "DocHeaderText" AS "9_doc_header_text",
   NULL AS "10_local_ledger",
   NULL AS "11_posting_key",
   "ItemType" AS "12_item_type",
@@ -210,7 +290,7 @@ SELECT
   NULL AS "52_cross_company",
   NULL AS "53_gl_accnt_999",
   NULL AS "54_prctr_999",
-  "AmountDI" AS "55_amount_di",
+  "AmountDi" AS "55_amount_di",
   NULL AS "56_amt_base_di",
   NULL AS "57_date_of_dunning_note",
   NULL AS "58_dunning_level",
@@ -224,14 +304,9 @@ SELECT
   NULL AS "66_discount_base",
   NULL AS "67_reference_key_2",
   NULL AS "68_invoice_receipt_date",
-  "AccountGroup" AS "CHECKAccountGroup",
-  "CardCode" AS "CHECKBusinessPartner",
-  "AmountCLP" AS "CHECKAmountCLP"
+  "CheckAccountGroup",
+  "CheckBusinessPartner",
+  "CheckAmountLocal"
 FROM
-  combined_entries
-ORDER BY
-  "CardCode",
-  "TransId",
-  "Line_ID",
-  "ItemType"
+  query
 ;

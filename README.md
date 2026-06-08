@@ -16,8 +16,7 @@ Prepare
 
 - `npm run clean`: Delete installed files
 - `pnpm install`: Install dependencies
-- `pnpm approve-builds`: Approve post-install scripts
-- `pnpm up --latest -r --interactive`: Update dependencies
+- `pnpm up --latest --interactive`: Update dependencies
 
 Format
 

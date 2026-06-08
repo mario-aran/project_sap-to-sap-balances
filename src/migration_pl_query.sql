@@ -1815,7 +1815,7 @@ WITH
       "LineAmount" * -1 AS "LineAmount",
       "Currency",
       'reconciliation' AS "AccountGroup",
-      'P291100000' AS "Account" -- P&L reconciliation account
+      'P291100000' AS "Account" -- BS reconciliation account
     FROM
       entries
   ),
@@ -1935,15 +1935,15 @@ WITH
   query AS (
     SELECT
       "Grouping",
-      'E930' AS "CompanyCode",
-      'ZS' AS "DocumentType",
+      'E930' AS "CompanyCode", -- MGLX company code
+      'ZS' AS "DocumentType", -- BS document type
       "PostingDate",
       'PL-ACCTS' AS "Reference",
       'PL-Migration' AS "DocHeaderText",
-      'S' AS "ItemType",
+      'S' AS "ItemType", -- G/L item type
       "Account",
       "Currency",
-      "Amount",
+      CAST("Amount" AS BIGINT) AS "Amount",
       "ItemText",
       "CostCenter",
       "ProfitCenter",

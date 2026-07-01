@@ -212,7 +212,7 @@ WITH
       'E930' AS "CompanyCode", -- MGLX company code
       'ZK' AS "DocumentType", -- Vendor document type
       "DocumentDate",
-      '20260531' AS "PostingDate", -- Adjust based on posting date filter
+      '20260630' AS "PostingDate", -- Adjust based on posting date filter
       "Reference",
       'AP OI-Migration' AS "DocHeaderText",
       "ItemType",

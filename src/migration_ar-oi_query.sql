@@ -54,10 +54,10 @@ WITH
       INNER JOIN OCRD ON OCRD."CardCode" = JDT1."ShortName"
       LEFT JOIN documents d ON d."TransId" = JDT1."TransId"
     WHERE
-      JDT1."RefDate" <= '2026-05-31' -- Filter by posting date
+      JDT1."RefDate" <= '2026-06-30' -- Filter by posting date
       AND JDT1."BalDueDeb" <> JDT1."BalDueCred" -- Exclude zero-balance due lines
       AND OCRD."CardType" = 'C' -- Keep only customer lines
-      AND OCRD."U_ID_SAP_AFS1" IS NOT NULL -- WARNING: LUT only, exclude unmapped bps
+      -- AND OCRD."U_ID_SAP_AFS1" IS NOT NULL -- WARNING: LUT only, exclude unmapped bps
   ),
   reconciled_entries AS (
     SELECT
@@ -103,7 +103,7 @@ WITH
       'E930' AS "CompanyCode", -- MGLX company code
       'Z1' AS "DocumentType", -- Customer document type
       "DocumentDate",
-      '20260531' AS "PostingDate", -- Adjust based on posting date filter
+      '20260630' AS "PostingDate", -- Adjust based on posting date filter
       "Reference",
       'AR OI-Migration' AS "DocHeaderText",
       "ItemType",

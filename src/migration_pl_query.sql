@@ -1794,11 +1794,11 @@ WITH
       INNER JOIN OACT ON OACT."AcctCode" = JDT1."Account"
       LEFT JOIN accounts_mapping am ON am."Id" = JDT1."Account"
     WHERE
-      JDT1."RefDate" BETWEEN '2026-01-01' AND '2026-05-31' -- Filter by posting date
+      JDT1."RefDate" BETWEEN '2026-01-01' AND '2026-06-30' -- Filter by posting date
       AND JDT1."Debit" <> JDT1."Credit" -- Exclude zero-balance lines
       AND JDT1."TransType" NOT IN (-2, -3) -- Exclude opening/closing balance transactions
       AND OACT."GroupMask" IN (4, 5, 6, 7, 8) -- Keep only P&L accounts
-      AND am."Id" IS NOT NULL -- WARNING: LUT only, exclude unmapped accounts
+      AND am."Id" IS NOT NULL -- Exclude unmapped accounts
   ),
   reconciled_entries AS (
     SELECT

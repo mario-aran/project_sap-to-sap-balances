@@ -161,10 +161,10 @@ WITH
       LEFT JOIN documents d ON d."TransId" = JDT1."TransId"
       LEFT JOIN ap_payment_terms_mapping aptm ON aptm."Id" = d."GroupNum"
     WHERE
-      JDT1."RefDate" <= '2026-05-31' -- Filter by posting date
+      JDT1."RefDate" <= '2026-06-30' -- Filter by posting date
       AND JDT1."BalDueDeb" <> JDT1."BalDueCred" -- Exclude zero-balance due lines
       AND OCRD."CardType" = 'S' -- Keep only vendor lines
-      AND OCRD."U_ID_SAP_AFS1" IS NOT NULL -- WARNING: LUT only, exclude unmapped bps
+      -- AND OCRD."U_ID_SAP_AFS1" IS NOT NULL -- WARNING: LUT only, exclude unmapped bps
   ),
   reconciled_entries AS (
     SELECT

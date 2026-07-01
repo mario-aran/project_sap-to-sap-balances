@@ -1362,10 +1362,10 @@ WITH
       INNER JOIN OACT ON OACT."AcctCode" = JDT1."Account"
       LEFT JOIN accounts_mapping am ON am."Id" = JDT1."Account"
     WHERE
-      JDT1."RefDate" <= '2026-05-31' -- Filter by posting date
+      JDT1."RefDate" <= '2026-06-30' -- Filter by posting date
       AND JDT1."Debit" <> JDT1."Credit" -- Exclude zero-balance lines
       AND JDT1."Account" LIKE '102%' -- Keep only FA accounts
-      AND am."Id" IS NOT NULL -- WARNING: LUT only, exclude unmapped accounts
+      AND am."Id" IS NOT NULL -- Exclude unmapped accounts
   ),
   reconciled_entries AS (
     SELECT
@@ -1416,7 +1416,7 @@ WITH
       "Grouping",
       'E930' AS "CompanyCode", -- MGLX company code
       'ZA' AS "DocumentType", -- FA document type
-      '20260531' AS "PostingDate", -- Adjust based on posting date filter
+      '20260630' AS "PostingDate", -- Adjust based on posting date filter
       'AA-ACCTS' AS "Reference",
       'AA-Migration' AS "DocHeaderText",
       'S' AS "ItemType", -- G/L item type

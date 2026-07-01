@@ -1363,12 +1363,12 @@ WITH
       LEFT JOIN OCRD ON OCRD."CardCode" = JDT1."ShortName"
       LEFT JOIN accounts_mapping am ON am."Id" = JDT1."Account"
     WHERE
-      JDT1."RefDate" <= '2026-05-31' -- Filter by posting date
+      JDT1."RefDate" <= '2026-06-30' -- Filter by posting date
       AND JDT1."Debit" <> JDT1."Credit" -- Exclude zero-balance lines
       AND JDT1."Account" NOT LIKE '102%' -- Exclude FA accounts
       AND OACT."GroupMask" IN (1, 2, 3) -- Keep only BS accounts
       AND OCRD."CardCode" IS NULL -- Exclude bp lines
-      AND am."Id" IS NOT NULL -- WARNING: LUT only, exclude unmapped accounts
+      AND am."Id" IS NOT NULL -- Exclude unmapped accounts
   ),
   reconciled_entries AS (
     SELECT
@@ -1419,7 +1419,7 @@ WITH
       "Grouping",
       'E930' AS "CompanyCode", -- MGLX company code
       'ZS' AS "DocumentType", -- BS document type
-      '20260531' AS "PostingDate", -- Adjust based on posting date filter
+      '20260630' AS "PostingDate", -- Adjust based on posting date filter
       'BS-ACCTS' AS "Reference",
       'BS-Migration' AS "DocHeaderText",
       'S' AS "ItemType", -- G/L item type

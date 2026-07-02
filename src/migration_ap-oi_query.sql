@@ -164,7 +164,7 @@ WITH
       JDT1."RefDate" <= '2026-06-30' -- Filter by posting date
       AND JDT1."BalDueDeb" <> JDT1."BalDueCred" -- Exclude zero-balance due lines
       AND OCRD."CardType" = 'S' -- Keep only vendor lines
-      -- AND OCRD."U_ID_SAP_AFS1" IS NOT NULL -- WARNING: LUT only, exclude unmapped bps
+      AND OCRD."U_ID_SAP_AFS1" IS NOT NULL -- Exclude unmapped bps
   ),
   reconciled_entries AS (
     SELECT

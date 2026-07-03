@@ -140,6 +140,12 @@ WITH
       DUMMY
     UNION ALL
     SELECT
+      '10103026',
+      'P147110000'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
       '10104004',
       'P151132028'
     FROM
@@ -280,6 +286,12 @@ WITH
     SELECT
       '10107002',
       'P149120015'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '10107003',
+      'P149150005'
     FROM
       DUMMY
     UNION ALL
@@ -490,6 +502,12 @@ WITH
     SELECT
       '20105003',
       'P246121000'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '20105004',
+      'P246111015'
     FROM
       DUMMY
     UNION ALL
@@ -1023,6 +1041,12 @@ WITH
     UNION ALL
     SELECT
       '60105003',
+      'P534140003'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
+      '60105030',
       'P534140003'
     FROM
       DUMMY

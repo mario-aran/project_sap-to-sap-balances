@@ -122,6 +122,7 @@ WITH
       'B' AS "PaymentMethod", -- Default value
       JDT1."TransId",
       JDT1."Line_ID",
+      JDT1."Account" AS "SourceAccount",
       TO_VARCHAR (JDT1."TaxDate", 'YYYYMMDD') AS "DocumentDate",
       TO_VARCHAR (JDT1."DueDate", 'YYYYMMDD') AS "BaselineDate",
       COALESCE(JDT1."FCCurrency", OADM."MainCurncy") AS "Currency",
@@ -131,10 +132,10 @@ WITH
         LPAD (OCRD."U_ID_SAP_AFS1", 10, '0'),
         'NOT MAPPED'
       ) || '-' || OCRD."CardCode" AS "ItemText",
-      CASE
-        WHEN d."TransId" IS NOT NULL THEN d."FolioPref" || '-' || d."FolioNum"
-        ELSE TO_VARCHAR (JDT1."TransId")
-      END AS "Reference",
+      COALESCE(
+        d."FolioPref" || '-' || d."FolioNum",
+        TO_VARCHAR (JDT1."TransId")
+      ) AS "Reference",
       CASE
         WHEN OACT."GroupMask" = 1 THEN '01 assets'
         WHEN OACT."GroupMask" = 2 THEN '02 liabilities'
@@ -179,6 +180,7 @@ WITH
       NULL AS "PaymentMethod",
       "TransId",
       "Line_ID",
+      "SourceAccount",
       "DocumentDate",
       NULL AS "BaselineDate",
       "Currency",
@@ -225,6 +227,7 @@ WITH
       "PaymentMethod",
       CAST("AmountDi" AS BIGINT) AS "AmountDi",
       "AccountGroup" AS "CheckAccountGroup",
+      "SourceAccount" AS "CheckAccount",
       "CardCode" AS "CheckBusinessPartner",
       CAST("AmountLocal" AS BIGINT) AS "CheckAmountLocal"
     FROM
@@ -305,6 +308,7 @@ SELECT
   NULL AS "67_reference_key_2",
   NULL AS "68_invoice_receipt_date",
   "CheckAccountGroup",
+  "CheckAccount",
   "CheckBusinessPartner",
   "CheckAmountLocal"
 FROM

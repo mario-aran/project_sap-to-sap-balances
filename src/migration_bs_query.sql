@@ -1389,7 +1389,23 @@ WITH
     WHERE
       JDT1."RefDate" <= '2026-06-30' -- Filter by posting date
       AND JDT1."Debit" <> JDT1."Credit" -- Exclude zero-balance lines
-      AND JDT1."Account" NOT LIKE '102%' -- Exclude FA accounts
+      AND JDT1."Account" NOT IN (
+        '10201002',
+        '10201003',
+        '10201004',
+        '10201005',
+        '10201006',
+        '10201007',
+        '10203001',
+        '10204001',
+        '10206001',
+        '10206002',
+        '10206003',
+        '10206004',
+        '10206005',
+        '10206006',
+        '10206021'
+      ) -- Exclude FA accounts
       AND OACT."GroupMask" IN (1, 2, 3) -- Keep only BS accounts
       AND OCRD."CardCode" IS NULL -- Exclude bp lines
       AND am."Id" IS NOT NULL -- Exclude unmapped accounts

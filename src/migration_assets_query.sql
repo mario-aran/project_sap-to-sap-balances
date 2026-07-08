@@ -1411,7 +1411,6 @@ WITH
         '10206006',
         '10206021'
       ) -- Keep only FA accounts
-      AND am."Id" IS NOT NULL -- Exclude unmapped accounts
   ),
   reconciled_entries AS (
     SELECT

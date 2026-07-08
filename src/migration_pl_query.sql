@@ -1826,9 +1826,8 @@ WITH
     WHERE
       JDT1."RefDate" BETWEEN '2026-01-01' AND '2026-06-30' -- Filter by posting date
       AND JDT1."Debit" <> JDT1."Credit" -- Exclude zero-balance lines
-      AND JDT1."TransType" NOT IN (-2, -3) -- Exclude opening/closing balance transactions
       AND OACT."GroupMask" IN (4, 5, 6, 7, 8) -- Keep only P&L accounts
-      AND am."Id" IS NOT NULL -- Exclude unmapped accounts
+      AND JDT1."TransType" NOT IN (-2, -3) -- Exclude opening/closing balance transactions
   ),
   reconciled_entries AS (
     SELECT

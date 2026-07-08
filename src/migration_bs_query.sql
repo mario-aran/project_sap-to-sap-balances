@@ -1395,7 +1395,8 @@ WITH
     WHERE
       JDT1."RefDate" <= '2026-06-30' -- Filter by posting date
       AND JDT1."Debit" <> JDT1."Credit" -- Exclude zero-balance lines
-      AND OACT."GroupMask" IN (1, 2, 3) -- Keep only BS accounts
+      AND OACT."GroupMask" IN (1, 2, 3) -- Keep only non P&L Accounts
+      AND JDT1."Account" NOT IN ('10103004', '10104004') -- Exclude F.PISCOPO Template Accounts
       AND JDT1."Account" NOT IN (
         '10201002',
         '10201003',
@@ -1452,6 +1453,7 @@ WITH
           '10107003',
           '10107006',
           '10108003',
+          '10202006',
           '10206022',
           '10302014',
           '20101045',

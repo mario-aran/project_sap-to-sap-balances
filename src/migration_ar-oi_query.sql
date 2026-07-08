@@ -138,7 +138,7 @@ WITH
         '30101002',
         '30101011',
         '30101013'
-      ) -- Exclude bp lines but keep bs accounts
+      ) -- Exclude bs accounts
   ),
   reconciled_entries AS (
     SELECT

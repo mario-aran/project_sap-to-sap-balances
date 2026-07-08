@@ -536,6 +536,12 @@ WITH
       DUMMY
     UNION ALL
     SELECT
+      '20105021',
+      'P249154994'
+    FROM
+      DUMMY
+    UNION ALL
+    SELECT
       '20105022',
       'P249100033'
     FROM

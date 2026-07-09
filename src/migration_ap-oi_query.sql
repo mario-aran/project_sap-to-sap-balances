@@ -246,7 +246,6 @@ WITH
         '30101011',
         '30101013'
       ) -- Exclude bs accounts
-      -- AND OCRD."U_ID_SAP_AFS1" IS NOT NULL -- Exclude unmapped bps
   ),
   reconciled_entries AS (
     SELECT

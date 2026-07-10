@@ -18,30 +18,24 @@ WITH
       SUM(ITR1."ReconSumFC") AS "ReconSumFC",
       ITR1."TransId",
       ITR1."TransRowId",
-      ITR1."IsCredit",
-      OCRD."CardCode",
-      OCRD."U_ID_SAP_AFS1"
+      ITR1."IsCredit"
     FROM
-      OCRD
-      INNER JOIN ITR1 ON ITR1."ShortName" = OCRD."CardCode"
-      INNER JOIN OITR ON OITR."ReconNum" = ITR1."ReconNum"
+      OITR
+      INNER JOIN ITR1 ON ITR1."ReconNum" = OITR."ReconNum"
     WHERE
       OITR."ReconDate" <= '2026-06-30'
       AND OITR."CancelAbs" = 0
-      AND OCRD."CardType" = 'C' -- Keep only customer lines
     GROUP BY
       ITR1."TransId",
       ITR1."TransRowId",
-      ITR1."IsCredit",
-      OCRD."CardCode",
-      OCRD."U_ID_SAP_AFS1"
+      ITR1."IsCredit"
   ),
   /* Entries */
-  filtered_jdt1 AS (
+  entries AS (
     SELECT
       JDT1.*,
-      r."CardCode",
-      r."U_ID_SAP_AFS1",
+      OCRD."CardCode",
+      OCRD."U_ID_SAP_AFS1",
       CASE
         WHEN r."IsCredit" = 'D' THEN (JDT1."Debit" - JDT1."Credit" - r."ReconSum")
         WHEN r."IsCredit" = 'C' THEN (JDT1."Debit" - JDT1."Credit" + r."ReconSum")
@@ -53,16 +47,25 @@ WITH
         ELSE (JDT1."FCDebit" - JDT1."FCCredit")
       END AS "RecAmountFC"
     FROM
-      reconciliation r
-      INNER JOIN JDT1 ON (
-        JDT1."TransId" = r."TransId"
-        AND JDT1."Line_ID" = r."TransRowId"
+      OCRD
+      INNER JOIN JDT1 ON JDT1."ShortName" = OCRD."CardCode"
+      LEFT JOIN reconciliation ON (
+        r."TransId" = JDT1."TransId"
+        AND r."TransRowId" = JDT1."Line_ID"
       )
     WHERE
       JDT1."RefDate" <= '2026-06-30' -- Filter by posting date
       AND JDT1."Debit" <> JDT1."Credit" -- Exclude zero-balance lines
-      AND JDT1."Account" NOT IN ('10103004', '10104004') -- Exclude F.PISCOPO Template Accounts
+      AND (
+        CASE
+          WHEN r."IsCredit" = 'D' THEN (JDT1."Debit" - JDT1."Credit" - r."ReconSum")
+          WHEN r."IsCredit" = 'C' THEN (JDT1."Debit" - JDT1."Credit" + r."ReconSum")
+          ELSE (JDT1."Debit" - JDT1."Credit")
+        END
+      ) <> 0,
       AND JDT1."Account" NOT IN (
+        '10103004', -- F.PISCOPO account
+        '10104004', -- F.PISCOPO account
         '10101001',
         '10101002',
         '10101004',
@@ -141,22 +144,22 @@ WITH
         '30101002',
         '30101011',
         '30101013'
-      ) -- Exclude bs accounts
+      ) -- Exclude accounts
   ),
-  entries AS (
+  valid_entries AS (
     SELECT
-      fj."TransId",
-      fj."Line_ID",
-      fj."Account" AS "SourceAccount",
-      TO_VARCHAR (fj."TaxDate", 'YYYYMMDD') AS "DocumentDate",
-      TO_VARCHAR (fj."DueDate", 'YYYYMMDD') AS "BaselineDate",
-      COALESCE(fj."FCCurrency", OADM."MainCurncy") AS "Currency",
-      fj."CardCode",
-      COALESCE(fj."U_ID_SAP_AFS1", 'NOT MAPPED') AS "Account",
-      COALESCE(LPAD (fj."U_ID_SAP_AFS1", 10, '0'), 'NOT MAPPED') || '-' || fj."CardCode" AS "ItemText",
+      ve."TransId",
+      ve."Line_ID",
+      ve."Account" AS "SourceAccount",
+      TO_VARCHAR (ve."TaxDate", 'YYYYMMDD') AS "DocumentDate",
+      TO_VARCHAR (ve."DueDate", 'YYYYMMDD') AS "BaselineDate",
+      COALESCE(ve."FCCurrency", OADM."MainCurncy") AS "Currency",
+      ve."CardCode",
+      COALESCE(ve."U_ID_SAP_AFS1", 'NOT MAPPED') AS "Account",
+      COALESCE(LPAD (ve."U_ID_SAP_AFS1", 10, '0'), 'NOT MAPPED') || '-' || ve."CardCode" AS "ItemText",
       COALESCE(
         d."FolioPref" || '-' || d."FolioNum",
-        TO_VARCHAR (fj."TransId")
+        TO_VARCHAR (ve."TransId")
       ) AS "Reference",
       CASE
         WHEN OACT."GroupMask" = 1 THEN '01 assets'
@@ -168,19 +171,19 @@ WITH
         WHEN OACT."GroupMask" = 7 THEN '07 other income'
         WHEN OACT."GroupMask" = 8 THEN '08 other expenses'
       END AS "AccountGroup",
-      fj."RecAmount" AS "AmountLocal",
+      ve."RecAmount" AS "AmountLocal",
       CASE
-        WHEN fj."FCCurrency" IS NOT NULL THEN fj."RecAmount"
+        WHEN ve."FCCurrency" IS NOT NULL THEN ve."RecAmount"
       END AS "AmountDi",
       CASE
-        WHEN fj."FCCurrency" IS NOT NULL THEN fj."RecAmountFC"
-        ELSE fj."RecAmount"
+        WHEN ve."FCCurrency" IS NOT NULL THEN ve."RecAmountFC"
+        ELSE ve."RecAmount"
       END AS "Amount"
     FROM
-      filtered_jdt1 fj
+      valid_entries ve
       CROSS JOIN OADM
-      INNER JOIN OACT ON OACT."AcctCode" = fj."Account"
-      LEFT JOIN documents d ON d."TransId" = fj."TransId"
+      INNER JOIN OACT ON OACT."AcctCode" = ve."Account"
+      LEFT JOIN documents d ON d."TransId" = ve."TransId"
   ),
   reconciled_entries AS (
     SELECT
@@ -324,6 +327,4 @@ SELECT
   "CheckAmountLocal"
 FROM
   query
-LIMIT
-  1000
 ;

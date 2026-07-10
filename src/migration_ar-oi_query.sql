@@ -56,6 +56,7 @@ WITH
     WHERE
       JDT1."RefDate" <= '2026-06-30' -- Filter by posting date
       AND JDT1."Debit" <> JDT1."Credit" -- Exclude zero-balance lines
+      AND OCRD."CardType" = 'C' -- Keep only vendor lines
       AND JDT1."Account" NOT IN (
         '10103004', -- F.PISCOPO account
         '10104004', -- F.PISCOPO account

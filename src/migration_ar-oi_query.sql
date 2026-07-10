@@ -11,53 +11,56 @@ WITH
     FROM
       ORIN -- A/R Credit Memo
   ),
-  /* Entries */
-  entries AS (
+  /* Reconciliation */
+  reconciliation AS (
     SELECT
-      JDT1."TransId",
-      JDT1."Line_ID",
-      JDT1."Account" AS "SourceAccount",
-      TO_VARCHAR (JDT1."TaxDate", 'YYYYMMDD') AS "DocumentDate",
-      TO_VARCHAR (JDT1."DueDate", 'YYYYMMDD') AS "BaselineDate",
-      COALESCE(JDT1."FCCurrency", OADM."MainCurncy") AS "Currency",
+      SUM(ITR1."ReconSum") AS "ReconSum",
+      SUM(ITR1."ReconSumFC") AS "ReconSumFC",
+      ITR1."TransId",
+      ITR1."TransRowId",
+      ITR1."IsCredit",
       OCRD."CardCode",
-      COALESCE(OCRD."U_ID_SAP_AFS1", 'NOT MAPPED') AS "Account",
-      COALESCE(
-        LPAD (OCRD."U_ID_SAP_AFS1", 10, '0'),
-        'NOT MAPPED'
-      ) || '-' || OCRD."CardCode" AS "ItemText",
-      COALESCE(
-        d."FolioPref" || '-' || d."FolioNum",
-        TO_VARCHAR (JDT1."TransId")
-      ) AS "Reference",
-      CASE
-        WHEN OACT."GroupMask" = 1 THEN '01 assets'
-        WHEN OACT."GroupMask" = 2 THEN '02 liabilities'
-        WHEN OACT."GroupMask" = 3 THEN '03 equity'
-        WHEN OACT."GroupMask" = 4 THEN '04 revenue'
-        WHEN OACT."GroupMask" = 5 THEN '05 cost of goods sold'
-        WHEN OACT."GroupMask" = 6 THEN '06 expenses'
-        WHEN OACT."GroupMask" = 7 THEN '07 other income'
-        WHEN OACT."GroupMask" = 8 THEN '08 other expenses'
-      END AS "AccountGroup",
-      JDT1."BalDueDeb" - JDT1."BalDueCred" AS "AmountLocal",
-      CASE
-        WHEN JDT1."FCCurrency" IS NOT NULL THEN JDT1."BalDueDeb" - JDT1."BalDueCred"
-      END AS "AmountDi",
-      CASE
-        WHEN JDT1."FCCurrency" IS NOT NULL THEN JDT1."BalFcDeb" - JDT1."BalFcCred"
-        ELSE JDT1."BalDueDeb" - JDT1."BalDueCred"
-      END AS "Amount"
+      OCRD."U_ID_SAP_AFS1"
     FROM
-      JDT1
-      CROSS JOIN OADM
-      INNER JOIN OACT ON OACT."AcctCode" = JDT1."Account"
-      INNER JOIN OCRD ON OCRD."CardCode" = JDT1."ShortName"
-      LEFT JOIN documents d ON d."TransId" = JDT1."TransId"
+      OCRD
+      INNER JOIN ITR1 ON ITR1."ShortName" = OCRD."CardCode"
+      INNER JOIN OITR ON OITR."ReconNum" = ITR1."ReconNum"
+    WHERE
+      OITR."ReconDate" <= '2026-06-30'
+      AND OITR."CancelAbs" = 0
+      AND OCRD."CardType" = 'C' -- Keep only customer lines
+    GROUP BY
+      ITR1."TransId",
+      ITR1."TransRowId",
+      ITR1."IsCredit",
+      OCRD."CardCode",
+      OCRD."U_ID_SAP_AFS1"
+  ),
+  /* Entries */
+  filtered_jdt1 AS (
+    SELECT
+      JDT1.*,
+      r."CardCode",
+      r."U_ID_SAP_AFS1",
+      CASE
+        WHEN r."IsCredit" = 'D' THEN (JDT1."Debit" - JDT1."Credit" - r."ReconSum")
+        WHEN r."IsCredit" = 'C' THEN (JDT1."Debit" - JDT1."Credit" + r."ReconSum")
+        ELSE (JDT1."Debit" - JDT1."Credit")
+      END AS "RecAmount",
+      CASE
+        WHEN r."IsCredit" = 'D' THEN (JDT1."FCDebit" - JDT1."FCCredit" - r."ReconSumFC")
+        WHEN r."IsCredit" = 'C' THEN (JDT1."FCDebit" - JDT1."FCCredit" + r."ReconSumFC")
+        ELSE (JDT1."FCDebit" - JDT1."FCCredit")
+      END AS "RecAmountFC"
+    FROM
+      reconciliation r
+      INNER JOIN JDT1 ON (
+        JDT1."TransId" = r."TransId"
+        AND JDT1."Line_ID" = r."TransRowId"
+      )
     WHERE
       JDT1."RefDate" <= '2026-06-30' -- Filter by posting date
-      AND JDT1."BalDueDeb" <> JDT1."BalDueCred" -- Exclude zero-balance due lines
-      AND OCRD."CardType" = 'C' -- Keep only customer lines
+      AND JDT1."Debit" <> JDT1."Credit" -- Exclude zero-balance lines
       AND JDT1."Account" NOT IN ('10103004', '10104004') -- Exclude F.PISCOPO Template Accounts
       AND JDT1."Account" NOT IN (
         '10101001',
@@ -139,6 +142,45 @@ WITH
         '30101011',
         '30101013'
       ) -- Exclude bs accounts
+  ),
+  entries AS (
+    SELECT
+      fj."TransId",
+      fj."Line_ID",
+      fj."Account" AS "SourceAccount",
+      TO_VARCHAR (fj."TaxDate", 'YYYYMMDD') AS "DocumentDate",
+      TO_VARCHAR (fj."DueDate", 'YYYYMMDD') AS "BaselineDate",
+      COALESCE(fj."FCCurrency", OADM."MainCurncy") AS "Currency",
+      fj."CardCode",
+      COALESCE(fj."U_ID_SAP_AFS1", 'NOT MAPPED') AS "Account",
+      COALESCE(LPAD (fj."U_ID_SAP_AFS1", 10, '0'), 'NOT MAPPED') || '-' || fj."CardCode" AS "ItemText",
+      COALESCE(
+        d."FolioPref" || '-' || d."FolioNum",
+        TO_VARCHAR (fj."TransId")
+      ) AS "Reference",
+      CASE
+        WHEN OACT."GroupMask" = 1 THEN '01 assets'
+        WHEN OACT."GroupMask" = 2 THEN '02 liabilities'
+        WHEN OACT."GroupMask" = 3 THEN '03 equity'
+        WHEN OACT."GroupMask" = 4 THEN '04 revenue'
+        WHEN OACT."GroupMask" = 5 THEN '05 cost of goods sold'
+        WHEN OACT."GroupMask" = 6 THEN '06 expenses'
+        WHEN OACT."GroupMask" = 7 THEN '07 other income'
+        WHEN OACT."GroupMask" = 8 THEN '08 other expenses'
+      END AS "AccountGroup",
+      fj."RecAmount" AS "AmountLocal",
+      CASE
+        WHEN fj."FCCurrency" IS NOT NULL THEN fj."RecAmount"
+      END AS "AmountDi",
+      CASE
+        WHEN fj."FCCurrency" IS NOT NULL THEN fj."RecAmountFC"
+        ELSE fj."RecAmount"
+      END AS "Amount"
+    FROM
+      filtered_jdt1 fj
+      CROSS JOIN OADM
+      INNER JOIN OACT ON OACT."AcctCode" = fj."Account"
+      LEFT JOIN documents d ON d."TransId" = fj."TransId"
   ),
   reconciled_entries AS (
     SELECT
@@ -282,4 +324,6 @@ SELECT
   "CheckAmountLocal"
 FROM
   query
+LIMIT
+  1000
 ;

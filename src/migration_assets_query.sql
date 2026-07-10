@@ -1385,7 +1385,8 @@ WITH
         WHEN OACT."GroupMask" = 7 THEN '07 other income'
         WHEN OACT."GroupMask" = 8 THEN '08 other expenses'
       END AS "AccountGroup",
-      COALESCE(am."MappedId", 'NOT MAPPED') AS "Account"
+      COALESCE(am."MappedId", 'NOT MAPPED') AS "Account",
+      'APE' AS "MovType"
     FROM
       JDT1
       CROSS JOIN OADM
@@ -1423,7 +1424,8 @@ WITH
       "Amount" * -1 AS "Amount",
       "Currency",
       'reconciliation' AS "AccountGroup",
-      'P291100003' AS "Account" -- FA reconciliation account
+      'P291100003' AS "Account", -- FA reconciliation account
+      NULL AS "MovType"
     FROM
       entries
   ),
@@ -1433,14 +1435,16 @@ WITH
       "ItemText",
       "Currency",
       "AccountGroup",
-      "Account"
+      "Account",
+      "MovType"
     FROM
       reconciled_entries
     GROUP BY
       "ItemText",
       "Currency",
       "AccountGroup",
-      "Account"
+      "Account",
+      "MovType"
     HAVING
       SUM("Amount") <> 0 -- Exclude zero-balance sum
   ),
@@ -1469,6 +1473,7 @@ WITH
       "Currency",
       CAST("Amount" AS BIGINT) AS "Amount",
       "ItemText",
+      "MovType",
       "AccountGroup" AS "CheckAccountGroup"
     FROM
       calc
@@ -1503,7 +1508,7 @@ SELECT
   NULL AS "24_balancing_profit_center",
   NULL AS "25_assignment",
   "ItemText" AS "26_item_text",
-  NULL AS "27_mov_type",
+  "MovType" AS "27_mov_type",
   NULL AS "28_cost_center",
   NULL AS "29_profit_center",
   NULL AS "30_internal_order",

@@ -137,7 +137,6 @@ WITH
         '30101011',
         '30101013'
       ) -- Exclude bs accounts
-      AND OCRD."CardType" = 'C' -- Keep only vendor lines
       AND (
         CASE
           WHEN r."IsCredit" = 'D' THEN (JDT1."Debit" - JDT1."Credit" - r."ReconSum")
@@ -145,6 +144,7 @@ WITH
           ELSE (JDT1."Debit" - JDT1."Credit")
         END
       ) <> 0 -- Remove lines with reconciliation 0
+      AND OCRD."CardType" = 'C' -- Keep only customer lines
   ),
   valid_entries AS (
     SELECT

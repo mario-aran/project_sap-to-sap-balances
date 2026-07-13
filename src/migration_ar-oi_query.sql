@@ -23,7 +23,7 @@ WITH
       OITR
       INNER JOIN ITR1 ON ITR1."ReconNum" = OITR."ReconNum"
     WHERE
-      OITR."ReconDate" <= '2026-06-30'
+      OITR."ReconDate" <= '2026-06-30' -- Filter by posting date
       AND OITR."CancelAbs" = 0
     GROUP BY
       ITR1."TransId",
@@ -56,10 +56,8 @@ WITH
     WHERE
       JDT1."RefDate" <= '2026-06-30' -- Filter by posting date
       AND JDT1."Debit" <> JDT1."Credit" -- Exclude zero-balance lines
-      AND OCRD."CardType" = 'C' -- Keep only vendor lines
+      AND JDT1."Account" NOT IN ('10103004', '10104004') -- Exclude F.PISCOPO Template accounts
       AND JDT1."Account" NOT IN (
-        '10103004', -- F.PISCOPO account
-        '10104004', -- F.PISCOPO account
         '10101001',
         '10101002',
         '10101004',
@@ -138,14 +136,15 @@ WITH
         '30101002',
         '30101011',
         '30101013'
-      ) -- Exclude accounts
+      ) -- Exclude bs accounts
+      AND OCRD."CardType" = 'C' -- Keep only vendor lines
       AND (
         CASE
           WHEN r."IsCredit" = 'D' THEN (JDT1."Debit" - JDT1."Credit" - r."ReconSum")
           WHEN r."IsCredit" = 'C' THEN (JDT1."Debit" - JDT1."Credit" + r."ReconSum")
           ELSE (JDT1."Debit" - JDT1."Credit")
         END
-      ) <> 0
+      ) <> 0 -- Remove lines with reconciliation 0
   ),
   valid_entries AS (
     SELECT

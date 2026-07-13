@@ -1555,6 +1555,18 @@ WITH
       "Currency",
       CAST("Amount" AS BIGINT) AS "Amount",
       "ItemText",
+      CASE
+        WHEN "Account" IN (
+          'P122230001',
+          'P147110000',
+          'P161121004',
+          'P163110000',
+          'P164150000',
+          'P164160000',
+          'P211100000',
+          'P211210011'
+        ) THEN 'APE'
+      END AS "MovType",
       "AccountGroup" AS "CheckAccountGroup"
     FROM
       calc
@@ -1589,7 +1601,7 @@ SELECT
   NULL AS "24_balancing_profit_center",
   NULL AS "25_assignment",
   "ItemText" AS "26_item_text",
-  NULL AS "27_mov_type",
+  "MovType" AS "27_mov_type",
   NULL AS "28_cost_center",
   NULL AS "29_profit_center",
   NULL AS "30_internal_order",

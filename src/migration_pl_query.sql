@@ -1803,7 +1803,7 @@ WITH
       JDT1."TransId",
       JDT1."Line_ID",
       JDT1."ProfitCode",
-      TO_VARCHAR (LAST_DAY (JDT1."RefDate"), 'YYYYMMDD') AS "PostingDate",
+      TO_VARCHAR (LAST_DAY (JDT1."RefDate"), 'YYYYMMDD') AS "DocumentDate",
       JDT1."Account" AS "ItemText",
       JDT1."Debit" - JDT1."Credit" AS "LineAmount",
       OADM."MainCurncy" AS "Currency",
@@ -1839,7 +1839,7 @@ WITH
       "TransId",
       "Line_ID",
       NULL AS "ProfitCode",
-      "PostingDate",
+      "DocumentDate",
       "ItemText",
       "LineAmount" * -1 AS "LineAmount",
       "Currency",
@@ -1920,7 +1920,7 @@ WITH
   reconciled_entries2 AS (
     SELECT
       SUM("Amount") AS "Amount",
-      "PostingDate",
+      "DocumentDate",
       "ItemText",
       "Currency",
       "AccountGroup",
@@ -1935,7 +1935,7 @@ WITH
     FROM
       calc_ceco2
     GROUP BY
-      "PostingDate",
+      "DocumentDate",
       "ItemText",
       "Currency",
       "AccountGroup",
@@ -1956,7 +1956,7 @@ WITH
       *,
       DENSE_RANK() OVER (
         ORDER BY
-          "PostingDate",
+          "DocumentDate",
           "ItemText"
       ) AS "Grouping"
     FROM
@@ -1968,7 +1968,8 @@ WITH
       "Grouping",
       'E930' AS "CompanyCode", -- MGLX company code
       'ZS' AS "DocumentType", -- BS document type
-      "PostingDate",
+      "DocumentDate",
+      '20260630' AS "PostingDate", -- Adjust based on posting date filter
       'PL-ACCTS' AS "Reference",
       'PL-Migration' AS "DocHeaderText",
       'S' AS "ItemType", -- G/L item type
@@ -1987,7 +1988,7 @@ WITH
     FROM
       calc
     ORDER BY
-      "PostingDate",
+      "DocumentDate",
       "ItemText",
       "AccountGroup",
       "PrcCode"
@@ -1996,7 +1997,7 @@ SELECT
   "Grouping" AS "1_grouping",
   "CompanyCode" AS "2_company_code",
   "DocumentType" AS "3_document_type",
-  "PostingDate" AS "4_document_date",
+  "DocumentDate" AS "4_document_date",
   "PostingDate" AS "5_posting_date",
   NULL AS "6_reverse_date",
   NULL AS "7_currency_date",

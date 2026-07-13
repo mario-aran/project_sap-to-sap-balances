@@ -115,57 +115,52 @@ WITH
     FROM
       ORPC -- A/P Credit Memo
   ),
+  /* Reconciliation */
+  reconciliation AS (
+    SELECT
+      SUM(ITR1."ReconSum") AS "ReconSum",
+      SUM(ITR1."ReconSumFC") AS "ReconSumFC",
+      ITR1."TransId",
+      ITR1."TransRowId",
+      ITR1."IsCredit"
+    FROM
+      OITR
+      INNER JOIN ITR1 ON ITR1."ReconNum" = OITR."ReconNum"
+    WHERE
+      OITR."ReconDate" <= '2026-06-30' -- Filter by posting date
+      AND OITR."CancelAbs" = 0
+    GROUP BY
+      ITR1."TransId",
+      ITR1."TransRowId",
+      ITR1."IsCredit"
+  ),
   /* Entries */
   entries AS (
     SELECT
-      COALESCE(aptm."MappedId", 'Z999') AS "PaymentTerms", -- Default dummy value
-      'B' AS "PaymentMethod", -- Default value
-      JDT1."TransId",
-      JDT1."Line_ID",
-      JDT1."Account" AS "SourceAccount",
-      TO_VARCHAR (JDT1."TaxDate", 'YYYYMMDD') AS "DocumentDate",
-      TO_VARCHAR (JDT1."DueDate", 'YYYYMMDD') AS "BaselineDate",
-      COALESCE(JDT1."FCCurrency", OADM."MainCurncy") AS "Currency",
+      JDT1.*,
       OCRD."CardCode",
-      COALESCE(OCRD."U_ID_SAP_AFS1", 'NOT MAPPED') AS "Account",
-      COALESCE(
-        LPAD (OCRD."U_ID_SAP_AFS1", 10, '0'),
-        'NOT MAPPED'
-      ) || '-' || OCRD."CardCode" AS "ItemText",
-      COALESCE(
-        d."FolioPref" || '-' || d."FolioNum",
-        TO_VARCHAR (JDT1."TransId")
-      ) AS "Reference",
+      OCRD."U_ID_SAP_AFS1",
       CASE
-        WHEN OACT."GroupMask" = 1 THEN '01 assets'
-        WHEN OACT."GroupMask" = 2 THEN '02 liabilities'
-        WHEN OACT."GroupMask" = 3 THEN '03 equity'
-        WHEN OACT."GroupMask" = 4 THEN '04 revenue'
-        WHEN OACT."GroupMask" = 5 THEN '05 cost of goods sold'
-        WHEN OACT."GroupMask" = 6 THEN '06 expenses'
-        WHEN OACT."GroupMask" = 7 THEN '07 other income'
-        WHEN OACT."GroupMask" = 8 THEN '08 other expenses'
-      END AS "AccountGroup",
-      JDT1."BalDueDeb" - JDT1."BalDueCred" AS "AmountLocal",
+        WHEN r."IsCredit" = 'D' THEN (JDT1."Debit" - JDT1."Credit" - r."ReconSum")
+        WHEN r."IsCredit" = 'C' THEN (JDT1."Debit" - JDT1."Credit" + r."ReconSum")
+        ELSE (JDT1."Debit" - JDT1."Credit")
+      END AS "RecAmount",
       CASE
-        WHEN JDT1."FCCurrency" IS NOT NULL THEN JDT1."BalDueDeb" - JDT1."BalDueCred"
-      END AS "AmountDi",
-      CASE
-        WHEN JDT1."FCCurrency" IS NOT NULL THEN JDT1."BalFcDeb" - JDT1."BalFcCred"
-        ELSE JDT1."BalDueDeb" - JDT1."BalDueCred"
-      END AS "Amount"
+        WHEN r."IsCredit" = 'D' THEN (JDT1."FCDebit" - JDT1."FCCredit" - r."ReconSumFC")
+        WHEN r."IsCredit" = 'C' THEN (JDT1."FCDebit" - JDT1."FCCredit" + r."ReconSumFC")
+        ELSE (JDT1."FCDebit" - JDT1."FCCredit")
+      END AS "RecAmountFC"
     FROM
-      JDT1
-      CROSS JOIN OADM
-      INNER JOIN OACT ON OACT."AcctCode" = JDT1."Account"
-      INNER JOIN OCRD ON OCRD."CardCode" = JDT1."ShortName"
-      LEFT JOIN documents d ON d."TransId" = JDT1."TransId"
-      LEFT JOIN ap_payment_terms_mapping aptm ON aptm."Id" = d."GroupNum"
+      OCRD
+      INNER JOIN JDT1 ON JDT1."ShortName" = OCRD."CardCode"
+      LEFT JOIN reconciliation r ON (
+        r."TransId" = JDT1."TransId"
+        AND r."TransRowId" = JDT1."Line_ID"
+      )
     WHERE
       JDT1."RefDate" <= '2026-06-30' -- Filter by posting date
-      AND JDT1."BalDueDeb" <> JDT1."BalDueCred" -- Exclude zero-balance due lines
-      AND OCRD."CardType" = 'S' -- Keep only vendor lines
-      AND JDT1."Account" NOT IN ('10103004', '10104004') -- Exclude F.PISCOPO Template Accounts
+      AND JDT1."Debit" <> JDT1."Credit" -- Exclude zero-balance lines
+      AND JDT1."Account" NOT IN ('10103004', '10104004') -- Exclude F.PISCOPO Template accounts
       AND JDT1."Account" NOT IN (
         '10101001',
         '10101002',
@@ -246,13 +241,63 @@ WITH
         '30101011',
         '30101013'
       ) -- Exclude bs accounts
+      AND (
+        CASE
+          WHEN r."IsCredit" = 'D' THEN (JDT1."Debit" - JDT1."Credit" - r."ReconSum")
+          WHEN r."IsCredit" = 'C' THEN (JDT1."Debit" - JDT1."Credit" + r."ReconSum")
+          ELSE (JDT1."Debit" - JDT1."Credit")
+        END
+      ) <> 0 -- Remove lines with reconciliation 0
+      AND OCRD."CardType" = 'S' -- Keep only vendor lines
+  ),
+  valid_entries AS (
+    SELECT
+      COALESCE(aptm."MappedId", 'Z999') AS "PaymentTerms", -- Default dummy value
+      'B' AS "PaymentMethod", -- Default value
+      e."TransId",
+      e."Line_ID",
+      e."Account" AS "SourceAccount",
+      TO_VARCHAR (e."TaxDate", 'YYYYMMDD') AS "DocumentDate",
+      TO_VARCHAR (e."DueDate", 'YYYYMMDD') AS "BaselineDate",
+      COALESCE(e."FCCurrency", OADM."MainCurncy") AS "Currency",
+      e."CardCode",
+      COALESCE(e."U_ID_SAP_AFS1", 'NOT MAPPED') AS "Account",
+      COALESCE(LPAD (e."U_ID_SAP_AFS1", 10, '0'), 'NOT MAPPED') || '-' || e."CardCode" AS "ItemText",
+      COALESCE(
+        d."FolioPref" || '-' || d."FolioNum",
+        TO_VARCHAR (e."TransId")
+      ) AS "Reference",
+      CASE
+        WHEN OACT."GroupMask" = 1 THEN '01 assets'
+        WHEN OACT."GroupMask" = 2 THEN '02 liabilities'
+        WHEN OACT."GroupMask" = 3 THEN '03 equity'
+        WHEN OACT."GroupMask" = 4 THEN '04 revenue'
+        WHEN OACT."GroupMask" = 5 THEN '05 cost of goods sold'
+        WHEN OACT."GroupMask" = 6 THEN '06 expenses'
+        WHEN OACT."GroupMask" = 7 THEN '07 other income'
+        WHEN OACT."GroupMask" = 8 THEN '08 other expenses'
+      END AS "AccountGroup",
+      e."RecAmount" AS "AmountLocal",
+      CASE
+        WHEN e."FCCurrency" IS NOT NULL THEN e."RecAmount"
+      END AS "AmountDi",
+      CASE
+        WHEN e."FCCurrency" IS NOT NULL THEN e."RecAmountFC"
+        ELSE e."RecAmount"
+      END AS "Amount"
+    FROM
+      entries e
+      CROSS JOIN OADM
+      INNER JOIN OACT ON OACT."AcctCode" = e."Account"
+      LEFT JOIN documents d ON d."TransId" = e."TransId"
+      LEFT JOIN ap_payment_terms_mapping aptm ON aptm."Id" = d."GroupNum"
   ),
   reconciled_entries AS (
     SELECT
       'K' AS "ItemType", -- Vendor item type
       *
     FROM
-      entries
+      valid_entries
     UNION ALL
     SELECT
       'S' AS "ItemType", -- G/L item type
@@ -273,7 +318,7 @@ WITH
       "AmountDi" * -1 AS "AmountDi",
       "Amount" * -1 AS "Amount"
     FROM
-      entries
+      valid_entries
   ),
   /* Calculations */
   calc AS (
